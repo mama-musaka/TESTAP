@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Take Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Loading...</h1>
+    <form id="quiz"></form>
+    <div id="result" style="display:none;margin-top:30px;"></div>
+    <a href="index.html"><button>Back</button></a>
+  </div>
+
+  <script>
+    const url = new URLSearchParams(location.search);
+    const id = url.get('id');
+    fetch('/api/tests/'+id).then(r=>r.json()).then(test => {
+      document.getElementById('title').textContent = test.title;
+      document.getElementById('quiz').innerHTML = test.questions.map((q,i) => `
+        <div class="qblock">
+          <p><strong>Q${i+1}: ${q.text}</strong></p>
+          ${q.options.map((o,j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${o}</label><br>`).join('')}
+        </div>
+      `).join('') + '<button type="submit" class="green">Submit & Grade</button>';
+    });
+
+    document.getElementById('quiz').onsubmit = async e => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      const answers = {};
+      for (let [k,v] of data) answers[k] = v;
+      const res = await fetch('/api/grade/'+id, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(answers)});
+      const r = await res.json();
+      document.getElementById('result').innerHTML = `
+        <h2>Score: ${r.correct}/${r.total} (${r.percent}%)</h2>
+        <h1 style="color:${r.grade==='A'?'green':'red'}">Grade: ${r.grade}</h1>
+        ${r.mistakes.length ? r.mistakes.map(m=>`<p><strong>${m.question}</strong><br>You: <span style="color:red">${m.your}</span> → Correct: <span style="color:green">${m.correct}</span></p>`).join('') : '<p style="color:green">Perfect!</p>'}
+      `;
+      document.getElementById('result').style.display = 'block';
+    };
+  </script>
+</body>
+</html>

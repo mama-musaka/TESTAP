@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Create Test</h1>
+    <input id="title" placeholder="Test Title"><br><br>
+    <div id="questions"></div>
+    <button onclick="addQuestion()">+ Add Question</button>
+    <button class="green" onclick="saveTest()">Save Test</button>
+    <a href="index.html"><button>Back</button></a>
+  </div>
+
+  <script>
+    let count = 0;
+    function addQuestion() {
+      count++;
+      const div = document.createElement('div');
+      div.className = 'qblock';
+      div.innerHTML = `
+        <input placeholder="Question text" class="qtext"><br>
+        ${[0,1,2,3].map(i=>`<div><input type="radio" name="c${count}" value="${i}"><input placeholder="Option ${i+1}" class="opt"></div>`).join('')}
+        <button type="button" class="red" onclick="this.parentElement.remove()">Remove</button><hr>
+      `;
+      document.getElementById('questions').appendChild(div);
+    }
+    async function saveTest() {
+      const title = document.getElementById('title').value.trim();
+      if (!title) return alert('Enter title');
+      const questions = [];
+      document.querySelectorAll('.qblock').forEach(b => {
+        const text = b.querySelector('.qtext').value.trim();
+        const opts = Array.from(b.querySelectorAll('.opt')).map(o=>o.value.trim());
+        const correct = parseInt(b.querySelector('input[type=radio]:checked')?.value);
+        if (text && opts.every(o=>o) && correct!==undefined) questions.push({text, options:opts, correct});
+      });
+      if (questions.length===0) return alert('Add at least one question');
+      await fetch('/api/tests', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title,questions})});
+      alert('Saved!'); location.href='index.html';
+    }
+    addQuestion();
+  </script>
+</body>
+</html>
