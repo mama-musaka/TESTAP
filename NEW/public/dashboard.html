@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Учителски дашборд</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin:0; background:#f4f6f9; font-family:'Segoe UI',sans-serif; }
+    .header { background:#4361ee; color:white; padding:20px; text-align:center; font-size:28px; }
+    .container { max-width:1100px; margin:30px auto; padding:20px; }
+    .test-list { display:grid; gap:20px; }
+    .test-card { background:white; border-radius:15px; padding:25px; box-shadow:0 10px 30px rgba(0,0,0,0.1); }
+    .test-card h3 { margin:0 0 15px; color:#2c3e50; font-size:24px; }
+    table { width:100%; border-collapse:collapse; margin-top:15px; }
+    th, td { padding:14px; text-align:left; border-bottom:1px solid #eee; }
+    th { background:#f8f9fa; color:#2c3e50; font-weight:600; }
+    .grade-select { padding:8px; border:1px solid #ddd; border-radius:8px; }
+    .save-btn { background:#06d6a0; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; margin-left:10px; }
+    .delete-btn { background:#ef476f; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; margin-left:10px; }
+  </style>
+</head>
+<body>
+  <div class="header">Учителски дашборд</div>
+  <div class="container">
+    <a href="index.html" class="back-btn">Обратно към тестовете</a>
+    <h2>Резултати от учениците</h2>
+    <div id="tests"></div>
+  </div>
+
+  <script>
+    fetch('/api/submissions')
+      .then(r => r.json())
+      .then(data => {
+        const html = Object.keys(data).map(testId => {
+          const submissions = data[testId];
+          const testTitle = submissions[0]?.testTitle || 'Непознат тест';
+          const rows = submissions.map(s => `
+            <tr>
+              <td><strong>${s.studentName || 'Анонимен'}</strong> (${s.studentClass || '—'})</td>
+              <td>
+                <select class="grade-select" data-submission="${s.submissionId}">
+                  <option value="${s.manualGrade || s.autoGrade}" selected>${s.manualGrade || s.autoGrade}</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                </select>
+                <button class="save-btn" onclick="saveManualGrade(${s.submissionId}, this.previousElementSibling.value)">Запази</button>
+              </td>
+              <td>${new Date(s.submittedAt).toLocaleString('bg-BG')}</td>
+              <td>
+                <button onclick="window.open('submission.html?id=${s.submissionId}&test=${testId}', '_blank')">Преглед</button>
+                <button class="delete-btn" onclick="deleteSubmission(${s.submissionId})">Изтрий</button>
+              </td>
+            </tr>
+          `).join('');
+          return `
+            <div class="test-card">
+              <h3>${testTitle} (${submissions.length} ученика)</h3>
+              <table><thead><tr><th>Ученик</th><th>Оценка</th><th>Дата</th><th>Действия</th></tr></thead><tbody>${rows}</tbody></table>
+            </div>
+          `;
+        }).join('');
+        document.getElementById('tests').innerHTML = html || '<p>Все още няма предадени тестове.</p>';
+      });
+
+    async function saveManualGrade(submissionId, grade) {
+      const res = await fetch('/api/grade-manual/' + submissionId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manualGrade: grade })
+      });
+      if (res.ok) alert('Оценката е запазена!');
+    }
+
+    async function deleteSubmission(id) {
+      if (confirm('Изтриване на този резултат?')) {
+        await fetch('/api/submissions/' + id, { method: 'DELETE' });
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
