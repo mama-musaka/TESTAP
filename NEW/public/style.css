@@ -7,4 +7,23 @@ button:hover { opacity: 0.9; }
 .red { background: #7e3ce7; color: white; }
 .btn { background: #4a90e2; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; display: inline-block; }
 .test-item, .qblock { background: #f9f9f9; padding: 20px; margin: 15px 0; border-radius: 10px; border: 1px solid #ddd; }
-input[type=text], textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; }
+input[type=text], /* FIXED TEXTAREA FOR OPEN QUESTIONS – SAME ON CREATE AND TAKE */
+textarea {
+    width: 100% !important;
+    min-height: 140px !important;
+    padding: 15px !important;
+    margin-top: 10px !important;
+    font-size: 16px !important;
+    font-family: Arial, sans-serif !important;
+    border: 2px solid #ccc !important;
+    border-radius: 10px !important;
+    resize: none !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+}
+
+textarea:focus {
+    outline: none !important;
+    border-color: #4a90e2 !important;
+    box-shadow: 0 0 10px rgba(74,144,226,0.3) !important;
+}

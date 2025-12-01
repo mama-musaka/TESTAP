@@ -16,79 +16,125 @@
 
   <script>
     let count = 0;
+
     function addQuestion() {
       count++;
       const div = document.createElement('div');
       div.className = 'qblock';
       div.innerHTML = `
-        <select class="qtype" onchange="toggleOptions(this)">
-          <option value="mcq">Multiple Choice</option>
-          <option value="open">Open Answer (Text)</option>
+        <select class="qtype" onchange="toggleType(this)">
+          <option value="single">Single Answer (one correct)</option>
+          <option value="multiple">Multiple Answers (max 3 correct)</option>
+          <option value="open">Open Answer (text)</option>
         </select><br><br>
+
         <input placeholder="Question text" class="qtext"><br><br>
 
-        <div class="mcq-options">
-          ${[0,1,2,3].map(i=>`
-            <div><input type="radio" name="c${count}" value="${i}">
-            <input placeholder="Option ${i+1}" class="opt"></div>
+        <div class="choice-options">
+          ${[0,1,2,3].map(i => `
+            <div style="margin:10px 0;">
+              <input type="radio" name="correct${count}" value="${i}" class="single-correct">
+              <input type="checkbox" class="multi-correct" value="${i}" style="display:none">
+              <input placeholder="Option ${i+1}" class="opt" style="width:85%; margin-left:10px;">
+            </div>
           `).join('')}
         </div>
 
-        <div class="open-hint" style="display:none; color:gray; font-style:italic;">
-          Students will type their answer. You will grade manually.
+        <div class="open-hint" style="display:none; color:#0066cc; font-style:italic;">
+          Students will type their answer. Manual grading.
         </div>
 
-        <button type="button" class="red" onclick="this.parentElement.remove()">Remove</button><hr>
+        <div class="warning" style="color:#e67e22; font-weight:bold; display:none;">
+          Maximum 3 correct answers allowed!
+        </div>
+
+        <button type="button" class="red" onclick="this.parentElement.remove()">Remove Question</button><hr>
       `;
       document.getElementById('questions').appendChild(div);
     }
 
-    function toggleOptions(select) {
+    function toggleType(select) {
       const block = select.parentElement;
-      const mcq = block.querySelector('.mcq-options');
+      const choices = block.querySelector('.choice-options');
       const hint = block.querySelector('.open-hint');
+      const warning = block.querySelector('.warning');
+      const radios = block.querySelectorAll('.single-correct');
+      const checkboxes = block.querySelectorAll('.multi-correct');
+
       if (select.value === 'open') {
-        mcq.style.display = 'none';
+        choices.style.display = 'none';
         hint.style.display = 'block';
+        warning.style.display = 'none';
+        radios.forEach(r => r.style.display = 'none');
+        checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
       } else {
-        mcq.style.display = 'block';
+        choices.style.display = 'block';
         hint.style.display = 'none';
+        if (select.value === 'single') {
+          radios.forEach(r => r.style.display = 'inline');
+          checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
+          warning.style.display = 'none';
+        } else { // multiple
+          radios.forEach(r => { r.style.display = 'none'; r.checked = false; });
+          checkboxes.forEach(c => c.style.display = 'inline');
+          warning.style.display = 'block';
+
+          // LIMIT TO MAX 3 CHECKBOXES
+          checkboxes.forEach(cb => {
+            cb.onchange = function() {
+              const checked = block.querySelectorAll('.multi-correct:checked').length;
+              if (checked > 3) {
+                this.checked = false;
+                alert('Maximum 3 correct answers allowed!');
+              }
+            };
+          });
+        }
       }
     }
 
     async function saveTest() {
       const title = document.getElementById('title').value.trim();
-      if (!title) return alert('Enter title');
+      if (!title) return alert('Enter test title');
 
       const questions = [];
       document.querySelectorAll('.qblock').forEach(b => {
         const text = b.querySelector('.qtext').value.trim();
         const type = b.querySelector('.qtype').value;
-
         if (!text) return;
 
-        if (type === 'mcq') {
-          const opts = Array.from(b.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
-          const correct = parseInt(b.querySelector('input[type=radio]:checked')?.value);
-          if (opts.length !== 4 || correct === undefined) return alert('Complete multiple-choice question');
-          questions.push({ text, type: 'mcq', options: opts, correct });
-        } else {
+        if (type === 'open') {
           questions.push({ text, type: 'open' });
+        } else {
+          const opts = Array.from(b.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
+          if (opts.length < 2) return alert('Need at least 2 options');
+
+          if (type === 'single') {
+            const correct = parseInt(b.querySelector('input.single-correct:checked')?.value);
+            if (correct === undefined) return alert('Select one correct answer');
+            questions.push({ text, type: 'single', options: opts, correct });
+          } else { // multiple
+            const checked = b.querySelectorAll('input.multi-correct:checked');
+            if (checked.length < 1 || checked.length > 3) return alert('Select 1 to 3 correct answers');
+            const correct = Array.from(checked).map(c => parseInt(c.value));
+            questions.push({ text, type: 'multiple', options: opts, correct });
+          }
         }
       });
 
       if (questions.length === 0) return alert('Add at least one question');
 
-      await fetch('/api/tests', {
+      fetch('/api/tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, questions })
+      }).then(() => {
+        alert('Test saved successfully!');
+        location.href = 'index.html';
       });
-      alert('Test saved!');
-      location.href = 'index.html';
     }
 
-    // Start with one question
+    // Add first question
     addQuestion();
   </script>
 </body>
