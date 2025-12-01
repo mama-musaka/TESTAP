@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Create Test</title>
+  <meta charset="utf-8">
+  <title>Създаване на тест</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
-    <h1>Create Test</h1>
-    <input id="title" placeholder="Test Title"><br><br>
+    <h1>Създаване на тест</h1>
+    <input id="title" placeholder="Заглавие на теста"><br><br>
     <div id="questions"></div>
-    <button onclick="addQuestion()">+ Add Question</button>
-    <button class="green" onclick="saveTest()">Save Test</button>
-    <a href="index.html"><button>Back</button></a>
+    <button onclick="addQuestion()">+ Добави въпрос</button>
+    <button class="green" onclick="saveTest()">Запази теста</button>
+    <a href="index.html"><button>Обратно</button></a>
   </div>
 
   <script>
@@ -23,118 +24,152 @@
       div.className = 'qblock';
       div.innerHTML = `
         <select class="qtype" onchange="toggleType(this)">
-          <option value="single">Single Answer (one correct)</option>
-          <option value="multiple">Multiple Answers (max 3 correct)</option>
-          <option value="open">Open Answer (text)</option>
+          <option value="single">Еднократен избор (1 верен)</option>
+          <option value="multiple">Многократен избор (2 или 3 верни)</option>
+          <option value="open">Отворен въпрос</option>
         </select><br><br>
 
-        <input placeholder="Question text" class="qtext"><br><br>
+        <input placeholder="Текст на въпроса" class="qtext"><br><br>
+
+        <!-- Красиви радиобутони – показват се само при многократен избор -->
+        <div class="multi-count-options" style="display:none; margin:15px 0; padding:15px; background:#fff8e1; border-radius:10px; border-left:5px solid #f39c12;">
+          <strong>Брой верни отговори:</strong><br><br>
+          <label style="font-size:16px; margin-right:25px;">
+            <input type="radio" name="multi-count${count}" value="2" checked onchange="limitCheckboxes(this)">
+            Точно 2 верни отговора
+          </label>
+          <label style="font-size:16px;">
+            <input type="radio" name="multi-count${count}" value="3" onchange="limitCheckboxes(this)">
+            Точно 3 верни отговора
+          </label>
+        </div>
 
         <div class="choice-options">
           ${[0,1,2,3].map(i => `
-            <div style="margin:10px 0;">
+            <div style="margin:12px 0;">
               <input type="radio" name="correct${count}" value="${i}" class="single-correct">
-              <input type="checkbox" class="multi-correct" value="${i}" style="display:none">
-              <input placeholder="Option ${i+1}" class="opt" style="width:85%; margin-left:10px;">
+              <input type="checkbox" class="multi-correct" value="${i}" style="display:none" onchange="enforceLimit(this)">
+              <input placeholder="Отговор ${i+1}" class="opt" style="width:85%; margin-left:10px; padding:8px; border-radius:6px; border:1px solid #ccc;">
             </div>
           `).join('')}
         </div>
 
-        <div class="open-hint" style="display:none; color:#0066cc; font-style:italic;">
-          Students will type their answer. Manual grading.
+        <div class="open-hint" style="display:none; color:#0066cc; font-style:italic; margin:15px 0; padding:10px; background:#f0f8ff; border-radius:8px;">
+          Ученикът ще пише свободен текст – ръчна проверка от учителя.
         </div>
 
-        <div class="warning" style="color:#e67e22; font-weight:bold; display:none;">
-          Maximum 3 correct answers allowed!
-        </div>
-
-        <button type="button" class="red" onclick="this.parentElement.remove()">Remove Question</button><hr>
+        <button type="button" class="red" onclick="this.parentElement.remove()">Изтрий въпрос</button>
+        <hr>
       `;
       document.getElementById('questions').appendChild(div);
     }
 
     function toggleType(select) {
       const block = select.parentElement;
-      const choices = block.querySelector('.choice-options');
+      const multiDiv = block.querySelector('.multi-count-options');
+      const choiceDiv = block.querySelector('.choice-options');
       const hint = block.querySelector('.open-hint');
-      const warning = block.querySelector('.warning');
       const radios = block.querySelectorAll('.single-correct');
       const checkboxes = block.querySelectorAll('.multi-correct');
 
-      if (select.value === 'open') {
-        choices.style.display = 'none';
-        hint.style.display = 'block';
-        warning.style.display = 'none';
-        radios.forEach(r => r.style.display = 'none');
-        checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
-      } else {
-        choices.style.display = 'block';
-        hint.style.display = 'none';
-        if (select.value === 'single') {
-          radios.forEach(r => r.style.display = 'inline');
-          checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
-          warning.style.display = 'none';
-        } else { // multiple
-          radios.forEach(r => { r.style.display = 'none'; r.checked = false; });
-          checkboxes.forEach(c => c.style.display = 'inline');
-          warning.style.display = 'block';
+      multiDiv.style.display = 'none';
+      choiceDiv.style.display = 'none';
+      hint.style.display = 'none';
+      radios.forEach(r => { r.style.display = 'none'; r.checked = false; });
+      checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
 
-          // LIMIT TO MAX 3 CHECKBOXES
-          checkboxes.forEach(cb => {
-            cb.onchange = function() {
-              const checked = block.querySelectorAll('.multi-correct:checked').length;
-              if (checked > 3) {
-                this.checked = false;
-                alert('Maximum 3 correct answers allowed!');
-              }
-            };
-          });
+      if (select.value === 'open') {
+        hint.style.display = 'block';
+      } else if (select.value === 'single') {
+        choiceDiv.style.display = 'block';
+        radios.forEach(r => r.style.display = 'inline');
+      } else if (select.value === 'multiple') {
+        multiDiv.style.display = 'block';
+        choiceDiv.style.display = 'block';
+        checkboxes.forEach(c => c.style.display = 'inline');
+        limitCheckboxes(block.querySelector('input[name^="multi-count"]:checked'));
+      }
+    }
+
+    function enforceLimit(checkbox) {
+      const block = checkbox.closest('.qblock');
+      const selectedRadio = block.querySelector('input[name^="multi-count"]:checked');
+      if (!selectedRadio) return;
+      const max = parseInt(selectedRadio.value);
+
+      const checked = block.querySelectorAll('.multi-correct:checked');
+      if (checked.length > max) {
+        checkbox.checked = false;
+        alert(`Не можеш да избереш повече от ${max} верни отговора!`);
+      }
+    }
+
+    function limitCheckboxes(radio) {
+      if (!radio) return;
+      const block = radio.closest('.qblock');
+      const max = parseInt(radio.value);
+      const checked = block.querySelectorAll('.multi-correct:checked');
+
+      if (checked.length > max) {
+        for (let i = max; i < checked.length; i++) {
+          checked[i].checked = false;
         }
+        alert(`Променено на ${max} верни – излишните отметки са премахнати.`);
       }
     }
 
     async function saveTest() {
       const title = document.getElementById('title').value.trim();
-      if (!title) return alert('Enter test title');
+      if (!title) return alert('Въведете заглавие');
 
       const questions = [];
-      document.querySelectorAll('.qblock').forEach(b => {
-        const text = b.querySelector('.qtext').value.trim();
-        const type = b.querySelector('.qtype').value;
+      let error = false;
+
+      document.querySelectorAll('.qblock').forEach(block => {
+        if (error) return;
+        const text = block.querySelector('.qtext').value.trim();
+        const type = block.querySelector('.qtype').value;
         if (!text) return;
 
         if (type === 'open') {
           questions.push({ text, type: 'open' });
-        } else {
-          const opts = Array.from(b.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
-          if (opts.length < 2) return alert('Need at least 2 options');
+          return;
+        }
 
-          if (type === 'single') {
-            const correct = parseInt(b.querySelector('input.single-correct:checked')?.value);
-            if (correct === undefined) return alert('Select one correct answer');
-            questions.push({ text, type: 'single', options: opts, correct });
-          } else { // multiple
-            const checked = b.querySelectorAll('input.multi-correct:checked');
-            if (checked.length < 1 || checked.length > 3) return alert('Select 1 to 3 correct answers');
-            const correct = Array.from(checked).map(c => parseInt(c.value));
-            questions.push({ text, type: 'multiple', options: opts, correct });
+        const opts = Array.from(block.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
+        if (opts.length < 2) { error = true; alert('Минимум 2 отговора'); return; }
+
+        if (type === 'single') {
+          const sel = block.querySelector('input.single-correct:checked');
+          if (!sel) { error = true; alert('Изберете един верен'); return; }
+          questions.push({ text, type: 'single', options: opts, correct: parseInt(sel.value) });
+        }
+
+        if (type === 'multiple') {
+          const required = parseInt(block.querySelector('input[name^="multi-count"]:checked').value);
+          const checked = block.querySelectorAll('.multi-correct:checked');
+          if (checked.length !== required) {
+            error = true;
+            alert(`Трябва точно ${required} маркирани верни отговора!`);
+            return;
           }
+          const correct = Array.from(checked).map(c => parseInt(c.value));
+          questions.push({ text, type: 'multiple', options: opts, correct, requiredCount: required });
         }
       });
 
-      if (questions.length === 0) return alert('Add at least one question');
+      if (error || questions.length === 0) return;
 
-      fetch('/api/tests', {
+      await fetch('/api/tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, questions })
-      }).then(() => {
-        alert('Test saved successfully!');
-        location.href = 'index.html';
       });
+
+      alert('Тестът е запазен успешно!');
+      location.href = 'index.html';
     }
 
-    // Add first question
     addQuestion();
   </script>
 </body>

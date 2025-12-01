@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Take Test</title>
+  <title>Решаване на тест</title>
   <link rel="stylesheet" href="style.css">
   <style>
     textarea { width:100%; min-height:140px; padding:15px; margin-top:10px; font-size:16px; border:2px solid #ccc; border-radius:10px; resize:none; box-sizing:border-box; }
-    textarea:focus { border-color:#4a90e2; box-shadow:0 0 10px rgba(74,144,226,0.3); outline:none; }
+    textarea:focus { outline:none; border-color:#4a90e2; }
     .qblock { background:#f9f9f9; padding:20px; margin:20px 0; border-radius:10px; border-left:5px solid #4a90e2; }
-    label { display:block; margin:12px 0; font-size:16px; }
+    label { display:block; margin:12px 0; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 id="title">Loading...</h1>
+    <h1 id="title">Зареждане...</h1>
     <form id="quiz">
       <div id="questions"></div>
       <br>
-      <button type="submit" class="green" style="font-size:18px;padding:15px 30px;">Submit & Grade</button>
+      <button type="submit" class="green" style="font-size:18px;padding:15px 30px;">Предай теста</button>
     </form>
-
-    <div id="result" style="display:none; margin-top:30px; padding:20px; background:#f0f8ff; border-radius:10px;"></div>
-    <br><a href="index.html"><button>Back to Home</button></a>
+    <div id="result" style="display:none;margin-top:30px;padding:20px;background:#f0f8ff;border-radius:10px;"></div>
+    <br><a href="index.html"><button>Обратно</button></a>
   </div>
 
   <script>
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
-    if (!id) { document.body.innerHTML = "<h1>No test selected</h1>"; }
+    if (!id) document.body.innerHTML = "<h1>Няма избран тест</h1>";
 
     fetch('/api/tests/' + id)
       .then(r => r.json())
@@ -36,21 +35,26 @@
         const html = test.questions.map((q, i) => {
           if (q.type === 'open') {
             return `<div class="qblock">
-              <p><strong>Q${i+1}: ${q.text}</strong> <em style="color:#0066cc;">(Open answer)</em></p>
-              <textarea name="q${i}" placeholder="Write your answer here..." required></textarea>
+              <p><strong>В${i+1}: ${q.text}</strong> <em style="color:#0066cc;">(Отворен въпрос)</em></p>
+              <textarea name="q${i}" placeholder="Напишете отговора си тук..." required></textarea>
             </div>`;
           }
           if (q.type === 'multiple') {
+            const req = q.requiredCount || 2;
             return `<div class="qblock">
-              <p><strong>Q${i+1}: ${q.text}</strong> <em style="color:#e67e22;">(Multiple correct answers – check all that apply)</em></p>
+              <p><strong>В${i+1}: ${q.text}</strong> 
+                <em style="color:#e67e22;">(Трябва да изберете точно ${req} верни отговора)</em>
+              </p>
               ${q.options.map((opt, j) => `
-                <label><input type="checkbox" name="q${i}" value="${j}"> ${opt}</label>
+                <label><input type="checkbox" name="q${i}" value="${j}" 
+                       onchange="limitCheckboxes(this, ${req}, ${i})"> ${opt}</label>
               `).join('')}
+              <div id="warn${i}" style="color:#c0392b;margin-top:8px;"></div>
             </div>`;
           }
           // single
           return `<div class="qblock">
-            <p><strong>Q${i+1}: ${q.text}</strong></p>
+            <p><strong>В${i+1}: ${q.text}</strong></p>
             ${q.options.map((opt, j) => `
               <label><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>
             `).join('')}
@@ -58,51 +62,55 @@
         }).join('');
 
         document.getElementById('questions').innerHTML = html;
-      })
-      .catch(() => alert('Error loading test'));
+      });
 
-    // SUBMIT — handles single, multiple, and open perfectly
+    function limitCheckboxes(cb, required, qIndex) {
+      const checked = document.querySelectorAll(`input[name="q${qIndex}"]:checked`);
+      const warn = document.getElementById('warn' + qIndex);
+
+      if (checked.length > required) {
+        cb.checked = false;
+        warn.innerHTML = `<strong>Грешка!</strong> Трябват точно ${required} отговора!`;
+        return;
+      }
+      warn.innerHTML = checked.length === required 
+        ? `<span style="color:green;">Добре – избрани ${required} отговора</span>`
+        : `Избрани: ${checked.length} от ${required} необходими`;
+    }
+
     document.getElementById('quiz').onsubmit = async e => {
       e.preventDefault();
       const fd = new FormData(e.target);
       const answers = {};
-
-      // Group checkbox answers into arrays
-      for (let [key, val] of fd) {
-        if (answers[key]) {
-          if (Array.isArray(answers[key])) answers[key].push(val);
-          else answers[key] = [answers[key], val];
-        } else {
-          answers[key] = val;
-        }
+      for (let [k, v] of fd) {
+        if (answers[k]) {
+          if (Array.isArray(answers[k])) answers[k].push(v);
+          else answers[k] = [answers[k], v];
+        } else answers[k] = v;
       }
 
-      const response = await fetch('/api/grade/' + id, {
+      const res = await fetch('/api/grade/' + id, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(answers)
       });
-      const result = await response.json();
+      const r = await res.json();
 
-      let out = `<h2>Multiple-choice correct: ${result.correct}/${result.total_mc}</h2>
-                 <h1 style="color:${result.grade==='A'?'green':'red'}">Grade: ${result.grade}</h1>
-                 <h3>Open questions for teacher: ${result.open_count}</h3>`;
+      let out = `<h2>Точки от затворени въпроси: ${r.correct}/${r.total_mc}</h2>
+                 <h1 style="font-size:48px;color:${r.grade==='6'?'#27ae60':r.grade==='2'?'#c0392b':'#e67e22'}">
+                   Оценка: ${r.grade}
+                 </h1>
+                 <h3>Отворени въпроси за ръчна проверка: ${r.open_count}</h3>`;
 
-      if (result.mistakes.length) {
-        out += "<h3>Wrong answers:</h3>" + result.mistakes.map(m => `
-          <div style="background:#ffebee;padding:15px;margin:10px 0;border-radius:8px;">
-            <strong>${m.question}</strong><br>
-            You: <span style="color:red">${m.your||'(nothing)'}</span><br>
-            Correct: <span style="color:green">${m.correct}</span>
-          </div>`).join('');
-      }
+      if (r.mistakes.length) out += '<h3>Грешени въпроси:</h3>' + r.mistakes.map(m=>`
+        <div style="background:#ffebee;padding:15px;margin:10px 0;border-radius:8px;">
+          <strong>${m.question}</strong><br>Ти: <span style="color:red">${m.your}</span><br>Верен: <span style="color:green">${m.correct}</span>
+        </div>`).join('');
 
-      if (result.open_answers.length) {
-        out += "<h3>Open answers:</h3>" + result.open_answers.map((a,i) => `
-          <div style="background:#e8f5e9;padding:15px;margin:10px 0;border-radius:8px;">
-            <strong>Q${i+1}:</strong><br>${a.replace(/\n/g,'<br>')||'<em>(empty)</em>'}
-          </div>`).join('');
-      }
+      if (r.open_answers.length) out += '<h3>Отворени отговори:</h3>' + r.open_answers.map((a,i)=>`
+        <div style="background:#e8f5e9;padding:15px;margin:10px 0;border-radius:8px;">
+          <strong>В${i+1}:</strong><br>${a||'<em>(празно)</em>'}
+        </div>`).join('');
 
       document.getElementById('result').innerHTML = out;
       document.getElementById('result').style.display = 'block';
