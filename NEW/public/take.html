@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Take Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Loading...</h1>
+    <form id="quiz">
+      <div id="questions"></div>
+      <br>
+      <button type="submit" class="green" style="font-size:18px; padding:15px 30px;">Submit & Grade</button>
+    </form>
+    <div id="result" style="display:none; margin-top:30px; padding:20px; background:#f0f8ff; border-radius:10px;"></div>
+    <br><a href="index.html"><button>Back to Home</button></a>
+  </div>
+
+  <script>
+    const url = new URLSearchParams(location.search);
+    const id = url.get('id');
+
+    if (!id) {
+      document.body.innerHTML = "<h1>No test selected!</h1><a href='index.html'>Back</a>";
+    }
+
+    fetch('/api/tests/' + id)
+      .then(r => r.json())
+      .then(test => {
+        document.getElementById('title').textContent = test.title;
+
+        const questionsDiv = document.getElementById('questions');
+        questionsDiv.innerHTML = test.questions.map((q, i) => {
+          if (q.type === 'open') {
+            return `
+              <div class="qblock">
+                <p><strong>Q${i+1}: ${q.text}</strong> <em style="color:#0066cc;">(Open answer)</em></p>
+                <textarea name="q${i}" rows="5" style="width:100%; padding:10px; font-size:16px;" required></textarea>
+              </div>`;
+          } else {
+            return `
+              <div class="qblock">
+                <p><strong>Q${i+1}: ${q.text}</strong></p>
+                ${q.options.map((opt, j) => `
+                  <label style="display:block; margin:10px 0; font-size:16px;">
+                    <input type="radio" name="q${i}" value="${j}" required> ${opt}
+                  </label>
+                `).join('')}
+              </div>`;
+          }
+        }).join('');
+      })
+      .catch(err => {
+        document.getElementById('questions').innerHTML = "<p style='color:red'>Error loading test.</p>";
+      });
+
+    // SUBMIT & GRADE — NOW WORKS PERFECTLY
+    document.getElementById('quiz').onsubmit = async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const answers = {};
+      for (let [key, value] of formData.entries()) {
+        answers[key] = value.trim();
+      }
+
+      const response = await fetch('/api/grade/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(answers)
+      });
+
+      const result = await response.json();
+
+      let html = `
+        <h2>Multiple Choice Score: ${result.correct}/${result.total_mc} correct</h2>
+        <h1 style="color: ${result.grade === 'A' ? 'green' : 'red'}">Grade: ${result.grade}</h1>
+        <h3>Open Questions: ${result.open_count} (need teacher review)</h3>
+      `;
+
+      if (result.mistakes.length > 0) {
+        html += "<h3>Mistakes:</h3>";
+        html += result.mistakes.map(m => `
+          <div style="background:#ffebee; padding:15px; margin:10px 0; border-radius:8px;">
+            <strong>${m.question}</strong><br>
+            You answered: <span style="color:red">${m.your}</span><br>
+            Correct: <span style="color:green">${m.correct}</span>
+          </div>
+        `).join('');
+      }
+
+      if (result.open_answers.length > 0) {
+        html += "<h3>Open Answers (for teacher):</h3>";
+        result.open_answers.forEach((ans, i) => {
+          html += `<div style="background:#e8f5e9; padding:15px; margin:10px 0; border-radius:8px;">
+            <strong>Q${i+1}:</strong><br>${ans.replace(/\n/g, '<br>') || '<em>(no answer)</em>'}
+          </div>`;
+        });
+      }
+
+      if (result.mistakes.length === 0 && result.total_mc > 0) {
+        html += '<h2 style="color:green">Perfect on multiple choice!</h2>';
+      }
+
+      document.getElementById('result').innerHTML = html;
+      document.getElementById('result').style.display = 'block';
+      document.querySelector('button[type="submit"]').disabled = true;
+    };
+  </script>
+</body>
+</html>

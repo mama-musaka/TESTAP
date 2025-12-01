@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Create Test</h1>
+    <input id="title" placeholder="Test Title"><br><br>
+    <div id="questions"></div>
+    <button onclick="addQuestion()">+ Add Question</button>
+    <button class="green" onclick="saveTest()">Save Test</button>
+    <a href="index.html"><button>Back</button></a>
+  </div>
+
+  <script>
+    let count = 0;
+    function addQuestion() {
+      count++;
+      const div = document.createElement('div');
+      div.className = 'qblock';
+      div.innerHTML = `
+        <select class="qtype" onchange="toggleOptions(this)">
+          <option value="mcq">Multiple Choice</option>
+          <option value="open">Open Answer (Text)</option>
+        </select><br><br>
+        <input placeholder="Question text" class="qtext"><br><br>
+
+        <div class="mcq-options">
+          ${[0,1,2,3].map(i=>`
+            <div><input type="radio" name="c${count}" value="${i}">
+            <input placeholder="Option ${i+1}" class="opt"></div>
+          `).join('')}
+        </div>
+
+        <div class="open-hint" style="display:none; color:gray; font-style:italic;">
+          Students will type their answer. You will grade manually.
+        </div>
+
+        <button type="button" class="red" onclick="this.parentElement.remove()">Remove</button><hr>
+      `;
+      document.getElementById('questions').appendChild(div);
+    }
+
+    function toggleOptions(select) {
+      const block = select.parentElement;
+      const mcq = block.querySelector('.mcq-options');
+      const hint = block.querySelector('.open-hint');
+      if (select.value === 'open') {
+        mcq.style.display = 'none';
+        hint.style.display = 'block';
+      } else {
+        mcq.style.display = 'block';
+        hint.style.display = 'none';
+      }
+    }
+
+    async function saveTest() {
+      const title = document.getElementById('title').value.trim();
+      if (!title) return alert('Enter title');
+
+      const questions = [];
+      document.querySelectorAll('.qblock').forEach(b => {
+        const text = b.querySelector('.qtext').value.trim();
+        const type = b.querySelector('.qtype').value;
+
+        if (!text) return;
+
+        if (type === 'mcq') {
+          const opts = Array.from(b.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
+          const correct = parseInt(b.querySelector('input[type=radio]:checked')?.value);
+          if (opts.length !== 4 || correct === undefined) return alert('Complete multiple-choice question');
+          questions.push({ text, type: 'mcq', options: opts, correct });
+        } else {
+          questions.push({ text, type: 'open' });
+        }
+      });
+
+      if (questions.length === 0) return alert('Add at least one question');
+
+      await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, questions })
+      });
+      alert('Test saved!');
+      location.href = 'index.html';
+    }
+
+    // Start with one question
+    addQuestion();
+  </script>
+</body>
+</html>
