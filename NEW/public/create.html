@@ -1,18 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="bg">
 <head>
   <meta charset="utf-8">
   <title>Създаване на тест</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    :root { --primary:#4361ee; --success:#06d6a0; --danger:#ef476f; }
+    body { margin:0; background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; font-family:'Segoe UI',sans-serif; }
+    .container { max-width:800px; margin:60px auto; background:white; border-radius:18px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+    header { background:linear-gradient(135deg,var(--primary),#5d7bff); color:white; padding:30px; text-align:center; font-size:34px; font-weight:900; }
+    .main { padding:40px 45px; }
+    input[type="text"], input[type="number"], select {
+      width:100%; padding:11px; margin:6px 0; border:1.5px solid #ccc; border-radius:9px; font-size:16px;
+    }
+    input:focus, select:focus { border-color:var(--primary); outline:none; }
+    button {
+      background:var(--primary); color:white; padding:11px 24px; border:none; border-radius:9px;
+      cursor:pointer; font-size:16px; font-weight:bold; margin:6px 4px; box-shadow:0 5px 18px rgba(67,97,238,0.3);
+    }
+    button:hover { transform:translateY(-2px); }
+    .btn-success { background:var(--success); box-shadow:0 5px 18px rgba(6,214,160,0.3); }
+    .btn-danger { background:var(--danger); box-shadow:0 5px 18px rgba(239,71,111,0.3); font-size:15px; padding:9px 18px; }
+    .qblock {
+      background:#f9f9ff; padding:20px; margin:22px 0; border-radius:12px;
+      border-left:6px solid var(--primary); box-shadow:0 6px 20px rgba(0,0,0,0.07);
+    }
+    .points-row {
+      display:flex; align-items:center; margin:10px 0; font-weight:bold; color:#2c3e50; font-size:16px;
+    }
+    .points-row label { width:140px; margin-right:10px; }
+    .points-row input[type="number"] { width:90px; text-align:center; }
+    .multi-count-options {
+      background:#fff8e1; padding:14px; border-radius:9px; border-left:5px solid #f39c12; margin:12px 0; font-size:15px;
+    }
+    .open-hint {
+      background:#f0f8ff; padding:12px; border-radius:9px; border-left:5px solid #3498db;
+      color:#2c3e50; font-style:italic; margin:12px 0; font-size:14.5px;
+    }
+    .choice-options > div {
+      display:flex; align-items:center; margin:8px 0;
+    }
+    .choice-options input[type="text"] { flex:1; margin-left:8px; }
+    .back-btn {
+      display:block; width:fit-content; margin:50px auto 0; padding:18px 90px;
+      background:var(--primary); color:white; font-size:26px; font-weight:900;
+      border-radius:50px; text-decoration:none; box-shadow:0 15px 40px rgba(67,97,238,0.5);
+    }
+    .back-btn:hover { background:#3550d4; transform:translateY(-4px); }
+    hr { border:0.8px dashed #ddd; margin:25px 0; }
+     
+  </style>
+  
 </head>
 <body>
   <div class="container">
-    <h1>Създаване на тест</h1>
-    <input id="title" placeholder="Заглавие на теста"><br><br>
-    <div id="questions"></div>
-    <button onclick="addQuestion()">+ Добави въпрос</button>
-    <button class="green" onclick="saveTest()">Запази теста</button>
-    <a href="index.html"><button>Обратно</button></a>
+    <header>СЪЗДАВАНЕ НА ТЕСТ</header>
+    <div class="main">
+      <input type="text" id="title" placeholder="Заглавие на теста">
+
+      <div id="questions"></div>
+
+      <div style="text-align:center; margin:35px 0;">
+        <button onclick="addQuestion()">+ Добави въпрос</button>
+        <button class="btn-success" onclick="saveTest()" style="font-size:20px; padding:14px 45px;">
+          ЗАПАЗИ ТЕСТА
+        </button>
+      </div>
+
+      <a href="index.html" class="back-btn">Обратно</a>
+    </div>
   </div>
 
   <script>
@@ -24,153 +80,177 @@
       div.className = 'qblock';
       div.innerHTML = `
         <select class="qtype" onchange="toggleType(this)">
-          <option value="single">Еднократен избор (1 верен)</option>
-          <option value="multiple">Многократен избор (2 или 3 верни)</option>
+          <option value="single">Еднократен избор</option>
+          <option value="multiple">Многократен избор (2 или 3)</option>
           <option value="open">Отворен въпрос</option>
-        </select><br><br>
+        </select>
 
-        <input placeholder="Текст на въпроса" class="qtext"><br><br>
+        <input type="text" placeholder="Текст на въпроса" class="qtext">
 
-        <!-- Красиви радиобутони – показват се само при многократен избор -->
-        <div class="multi-count-options" style="display:none; margin:15px 0; padding:15px; background:#fff8e1; border-radius:10px; border-left:5px solid #f39c12;">
-          <strong>Брой верни отговори:</strong><br><br>
-          <label style="font-size:16px; margin-right:25px;">
-            <input type="radio" name="multi-count${count}" value="2" checked onchange="limitCheckboxes(this)">
-            Точно 2 верни отговора
-          </label>
-          <label style="font-size:16px;">
-            <input type="radio" name="multi-count${count}" value="3" onchange="limitCheckboxes(this)">
-            Точно 3 верни отговора
-          </label>
+        <div class="points-row">
+          <label>Точки:</label>
+          <input type="number" class="qpoints" min="1" max="10" value="10">
+        </div>
+
+        <div class="multi-count-options" style="display:none;">
+          <strong>Верни отговори:</strong><br>
+          <label><input type="radio" name="multi-count${count}" value="2" checked onchange="limitCheckboxes(this)"> Точно 2</label>    
+          <label><input type="radio" name="multi-count${count}" value="3" onchange="limitCheckboxes(this)"> Точно 3</label>
         </div>
 
         <div class="choice-options">
           ${[0,1,2,3].map(i => `
-            <div style="margin:12px 0;">
+            <div>
               <input type="radio" name="correct${count}" value="${i}" class="single-correct">
               <input type="checkbox" class="multi-correct" value="${i}" style="display:none" onchange="enforceLimit(this)">
-              <input placeholder="Отговор ${i+1}" class="opt" style="width:85%; margin-left:10px; padding:8px; border-radius:6px; border:1px solid #ccc;">
+              <input type="text" placeholder="Отговор ${i+1}" class="opt">
             </div>
           `).join('')}
         </div>
 
-        <div class="open-hint" style="display:none; color:#0066cc; font-style:italic; margin:15px 0; padding:10px; background:#f0f8ff; border-radius:8px;">
-          Ученикът ще пише свободен текст – ръчна проверка от учителя.
+        <div class="open-hint" style="display:none;">
+          Ученикът пише свободен текст – ръчна проверка.
         </div>
 
-        <button type="button" class="red" onclick="this.parentElement.remove()">Изтрий въпрос</button>
+        <div style="text-align:right;">
+          <button type="button" class="btn-danger" onclick="this.closest('.qblock').remove()">
+            Изтрий
+          </button>
+        </div>
         <hr>
       `;
       document.getElementById('questions').appendChild(div);
     }
 
-    function toggleType(select) {
-      const block = select.parentElement;
-      const multiDiv = block.querySelector('.multi-count-options');
-      const choiceDiv = block.querySelector('.choice-options');
+    function toggleType(sel) {
+      const block = sel.closest('.qblock');
+      const multi = block.querySelector('.multi-count-options');
+      const choices = block.querySelector('.choice-options');
       const hint = block.querySelector('.open-hint');
       const radios = block.querySelectorAll('.single-correct');
-      const checkboxes = block.querySelectorAll('.multi-correct');
+      const checks = block.querySelectorAll('.multi-correct');
 
-      multiDiv.style.display = 'none';
-      choiceDiv.style.display = 'none';
-      hint.style.display = 'none';
+      multi.style.display = choices.style.display = hint.style.display = 'none';
       radios.forEach(r => { r.style.display = 'none'; r.checked = false; });
-      checkboxes.forEach(c => { c.style.display = 'none'; c.checked = false; });
+      checks.forEach(c => { c.style.display = 'none'; c.checked = false; });
 
-      if (select.value === 'open') {
-        hint.style.display = 'block';
-      } else if (select.value === 'single') {
-        choiceDiv.style.display = 'block';
+      if (sel.value === 'open') hint.style.display = 'block';
+      else if (sel.value === 'single') {
+        choices.style.display = 'block';
         radios.forEach(r => r.style.display = 'inline');
-      } else if (select.value === 'multiple') {
-        multiDiv.style.display = 'block';
-        choiceDiv.style.display = 'block';
-        checkboxes.forEach(c => c.style.display = 'inline');
+      } else {
+        multi.style.display = choices.style.display = 'block';
+        checks.forEach(c => c.style.display = 'inline');
         limitCheckboxes(block.querySelector('input[name^="multi-count"]:checked'));
       }
     }
 
-    function enforceLimit(checkbox) {
-      const block = checkbox.closest('.qblock');
-      const selectedRadio = block.querySelector('input[name^="multi-count"]:checked');
-      if (!selectedRadio) return;
-      const max = parseInt(selectedRadio.value);
-
-      const checked = block.querySelectorAll('.multi-correct:checked');
-      if (checked.length > max) {
-        checkbox.checked = false;
-        alert(`Не можеш да избереш повече от ${max} верни отговора!`);
+    function enforceLimit(cb) {
+      const block = cb.closest('.qblock');
+      const max = +block.querySelector('input[name^="multi-count"]:checked').value;
+      if ([...block.querySelectorAll('.multi-correct:checked')].length > max) {
+        cb.checked = false;
+        alert(`Макс ${max} верни!`);
       }
     }
 
     function limitCheckboxes(radio) {
-      if (!radio) return;
       const block = radio.closest('.qblock');
-      const max = parseInt(radio.value);
+      const max = +radio.value;
       const checked = block.querySelectorAll('.multi-correct:checked');
-
       if (checked.length > max) {
-        for (let i = max; i < checked.length; i++) {
-          checked[i].checked = false;
-        }
-        alert(`Променено на ${max} верни – излишните отметки са премахнати.`);
+        for (let i = max; i < checked.length; i++) checked[i].checked = false;
       }
     }
 
     async function saveTest() {
       const title = document.getElementById('title').value.trim();
-      if (!title) return alert('Въведете заглавие');
+      if (!title) return alert('Въведи заглавие!');
 
       const questions = [];
       let error = false;
 
-      document.querySelectorAll('.qblock').forEach(block => {
+      document.querySelectorAll('.qblock').forEach(b => {
         if (error) return;
-        const text = block.querySelector('.qtext').value.trim();
-        const type = block.querySelector('.qtype').value;
+        const text = b.querySelector('.qtext').value.trim();
+        const type = b.querySelector('.qtype').value;
+        const points = Math.max(1, Math.min(10, +b.querySelector('.qpoints').value || 10));
         if (!text) return;
 
-        if (type === 'open') {
-          questions.push({ text, type: 'open' });
-          return;
-        }
+        if (type === 'open') { questions.push({ text, type: 'open', points }); return; }
 
-        const opts = Array.from(block.querySelectorAll('.opt')).map(o => o.value.trim()).filter(o => o);
-        if (opts.length < 2) { error = true; alert('Минимум 2 отговора'); return; }
+        const opts = [...b.querySelectorAll('.opt')].map(o => o.value.trim()).filter(Boolean);
+        if (opts.length < 2) { error = true; alert('Минимум 2 отговора!'); return; }
 
         if (type === 'single') {
-          const sel = block.querySelector('input.single-correct:checked');
-          if (!sel) { error = true; alert('Изберете един верен'); return; }
-          questions.push({ text, type: 'single', options: opts, correct: parseInt(sel.value) });
-        }
-
-        if (type === 'multiple') {
-          const required = parseInt(block.querySelector('input[name^="multi-count"]:checked').value);
-          const checked = block.querySelectorAll('.multi-correct:checked');
-          if (checked.length !== required) {
-            error = true;
-            alert(`Трябва точно ${required} маркирани верни отговора!`);
-            return;
-          }
-          const correct = Array.from(checked).map(c => parseInt(c.value));
-          questions.push({ text, type: 'multiple', options: opts, correct, requiredCount: required });
+          const sel = b.querySelector('input.single-correct:checked');
+          if (!sel) { error = true; alert('Избери верен!'); return; }
+          questions.push({ text, type: 'single', options: opts, correct: +sel.value, points });
+        } else {
+          const req = +b.querySelector('input[name^="multi-count"]:checked').value;
+          const checked = b.querySelectorAll('.multi-correct:checked');
+          if (checked.length !== req) { error = true; alert(`Трябва точно ${req} верни!`); return; }
+          questions.push({ text, type: 'multiple', options: opts, correct: [...checked].map(c => +c.value), requiredCount: req, points });
         }
       });
 
-      if (error || questions.length === 0) return;
+      if (error || !questions.length) return;
 
-      await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, questions })
-      });
-
-      alert('Тестът е запазен успешно!');
-      location.href = 'index.html';
+      const res = await fetch('/api/tests', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title, questions}) });
+      if (res.ok) { alert('Запазено!'); location.href='index.html'; }
+      else alert('Грешка');
     }
 
     addQuestion();
+    
   </script>
+  <!-- ГЛОБАЛЕН DARK MODE – сложи този код на ВСЯКА страница преди </body> -->
+<script>
+// Прилагаме текущото състояние
+if (localStorage.getItem('dark') === 'true') {
+  document.body.classList.add('dark');
+}
+
+// Създаваме бутончето (ако го няма)
+document.addEventListener('DOMContentLoaded', () => {
+  let btn = document.getElementById('global-dark-toggle');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'global-dark-toggle';
+    btn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+    btn.style.cssText = `
+      position:fixed; top:15px; right:15px; z-index:99999;
+      background:rgba(0,0,0,0.7); color:white; border:none; padding:10px 18px;
+      border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5); backdrop-filter:blur(10px);
+    `;
+    document.body.appendChild(btn);
+
+    btn.onclick = () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      localStorage.setItem('dark', isDark);
+      btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    };
+  }
+});
+</script>
+
+<style>
+/* ТЪМНА ТЕМА – работи за всички твои страници */
+body.dark { background:#0d1117 !important; color:#c9d1d9 !important; }
+body.dark .container,
+body.dark .main,
+body.dark .qblock,
+body.dark .test-card { background:#161b22 !important; }
+body.dark input,
+body.dark select,
+body.dark textarea { background:#0d1117 !important; color:#c9d1d9 !important; border-color:#30363d !important; }
+body.dark hr { border-color:#30363d !important; }
+body.dark .open-hint { background:#0d1117 !important; border-left-color:#58a6ff !important; color:#8b949e !important; }
+body.dark .multi-count-options { background:#2d1a00 !important; color:#fff !important; }
+body.dark table { background:#161b22 !important; }
+body.dark th { background:#1f6feb !important; }
+</style>
 </body>
 </html>
