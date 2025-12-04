@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Решаване на тест</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --primary: #4361ee;
+      --success: #06d6a0;
+      --danger: #ef476f;
+      --light: #f8f9fa;
+    }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .container {
+      max-width: 960px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary), #5d7bff);
+      color: white;
+      padding: 25px;
+      text-align: center;
+      font-size: 28px;
+    }
+    .main { padding: 30px; }
+    .info-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--light);
+      padding: 18px 25px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    .timer {
+      font-size: 36px;
+      font-weight: bold;
+      color: var(--danger);
+      background: white;
+      padding: 12px 30px;
+      border-radius: 50px;
+      box-shadow: 0 8px 25px rgba(239,71,111,0.3);
+    }
+    .timer.warning { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% {transform:scale(1)} 50% {transform:scale(1.05)} }
+
+    .progress-container {
+      height: 14px;
+      background: #e0e0e0;
+      border-radius: 7px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .progress {
+      height: 100%;
+      background: linear-gradient(90deg, #06d6a0, #1fab89);
+      width: 0%;
+      transition: width 0.6s ease;
+    }
+    .student-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .student-inputs input {
+      padding: 16px;
+      font-size: 17px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+    }
+    .student-inputs input:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+    .qblock {
+      background: white;
+      border: 2px solid #f0f0f0;
+      border-radius: 16px;
+      padding: 22px;
+      margin: 25px 0;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.07);
+      border-left: 6px solid var(--primary);
+    }
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      padding: 16px;
+      margin-top: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      resize: none;
+    }
+    textarea:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+    label {
+      display: block;
+      margin: 14px 0;
+      font-size: 17px;
+      cursor: pointer;
+    }
+    input[type="radio"], input[type="checkbox"] {
+      transform: scale(1.3);
+      margin-right: 12px;
+      accent-color: var(--primary);
+    }
+    .btn-submit {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      font-size: 22px;
+      font-weight: bold;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      margin: 30px 0;
+      box-shadow: 0 10px 30px rgba(6,214,160,0.4);
+    }
+    .btn-submit:hover { transform: translateY(-3px); }
+  </style>
+  
+</head>
+<body>
+  <div class="container">
+    <header id="title">Зареждане...</header>
+    <div class="main">
+      <div class="info-bar">
+        <div class="timer" id="timer">30:00</div>
+        <div>Решени: <strong id="answered">0</strong> от <strong id="totalQ">0</strong></div>
+      </div>
+
+      <div class="student-inputs">
+        <input type="text" id="studentName" placeholder="Име и фамилия" required>
+        <input type="text" id="studentClass" placeholder="Клас (напр. 10А)">
+      </div>
+
+      <div class="progress-container">
+        <div class="progress" id="progress"></div>
+      </div>
+
+      <form id="quiz">
+        <div id="questions"></div>
+        <button type="submit" class="btn-submit">Предай теста</button>
+      </form>
+
+      <!-- САМО ТОВА СЕ ВИЖДА СЛЕД ПРЕДАВАНЕ -->
+      <div id="result" style="display:none; text-align:center; padding:80px 20px;">
+        <h1 style="font-size:48px; color:#06d6a0; margin:0;">
+          Тестът е предаден
+        </h1>
+        <a href="index.html" class="btn-submit" style="display:inline-block; margin-top:50px; text-decoration:none; width:auto; padding:18px 60px;">
+          Обратно към тестовете
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    if (!id) {
+      document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:100px;'>Липсва тест!</h1>";
+    }
+
+    let timeLeft = 30 * 60;
+    const timerEl = document.getElementById('timer');
+    const timerInterval = setInterval(() => {
+      timeLeft--;
+      const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+      const s = String(timeLeft % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+      if (timeLeft <= 300) timerEl.classList.add('warning');
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        alert('Времето изтече!');
+        document.querySelector('.btn-submit').click();
+      }
+    }, 1000);
+
+    fetch('/api/tests/' + id)
+      .then(r => r.json())
+      .then(test => {
+        document.getElementById('title').textContent = test.title;
+        document.getElementById('totalQ').textContent = test.questions.length;
+
+        const html = test.questions.map((q, i) => {
+          if (q.type === 'open') {
+            return `<div class="qblock"><p><strong>Въпрос ${i+1}: ${q.text}</strong> <em style="color:#7209b7;">(текст)</em></p>
+                    <textarea name="q${i}" required></textarea></div>`;
+          }
+          if (q.type === 'multiple') {
+            const req = q.requiredCount || 2;
+            return `<div class="qblock"><p><strong>Въпрос ${i+1}: ${q.text}</strong> <em style="color:#e63946;">(избери точно ${req})</em></p>
+                    ${q.options.map((opt, j) => `<label><input type="checkbox" name="q${i}" value="${j}" onchange="limitCheckboxes(this,${req},${i})"> ${opt}</label>`).join('')}
+                    <div id="warn${i}" style="color:#e63946; margin-top:8px; font-weight:bold;"></div></div>`;
+          }
+          return `<div class="qblock"><p><strong>Въпрос ${i+1}: ${q.text}</strong></p>
+                  ${q.options.map((opt, j) => `<label><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`).join('')}</div>`;
+        }).join('');
+        document.getElementById('questions').innerHTML = html;
+
+        document.querySelectorAll('input, textarea').forEach(el => {
+          el.addEventListener('change', () => {
+            const answered = new Set();
+            document.querySelectorAll('[name^="q"]').forEach(inp => {
+              if ((inp.type === 'radio' && inp.checked) || 
+                  (inp.type === 'checkbox' && inp.checked) || 
+                  (inp.tagName === 'TEXTAREA' && inp.value.trim())) {
+                answered.add(inp.name);
+              }
+            });
+            const percent = (answered.size / test.questions.length) * 100;
+            document.getElementById('progress').style.width = percent + '%';
+            document.getElementById('answered').textContent = answered.size;
+          });
+        });
+      });
+
+    function limitCheckboxes(cb, req, i) {
+      const checked = document.querySelectorAll(`input[name="q${i}"]:checked`);
+      if (checked.length > req) { cb.checked = false; }
+      document.getElementById('warn'+i).textContent = checked.length === req ? 'Отлично!' : `Избрани: ${checked.length}/${req}`;
+    }
+
+    document.getElementById('quiz').onsubmit = async e => {
+      e.preventDefault();
+      clearInterval(timerInterval);
+
+      const fd = new FormData(e.target);
+      const answers = {};
+      for (let [k, v] of fd) {
+        if (answers[k]) {
+          if (Array.isArray(answers[k])) answers[k].push(v);
+          else answers[k] = [answers[k], v];
+        } else answers[k] = v;
+      }
+
+      answers.studentName = document.getElementById('studentName').value.trim() || 'Анонимен';
+      answers.studentClass = document.getElementById('studentClass').value.trim() || '';
+
+      await fetch('/api/grade/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(answers)
+      });
+
+      // САМО ТОВА СЕ ВИЖДА ОТ УЧЕНИКА
+      document.getElementById('result').style.display = 'block';
+      e.target.querySelector('button').disabled = true;
+      e.target.querySelector('button').textContent = 'Предаден';
+    };
+  </script>
+  <!-- ГЛОБАЛЕН DARK MODE – сложи този код на ВСЯКА страница преди </body> -->
+<script>
+// Прилагаме текущото състояние
+if (localStorage.getItem('dark') === 'true') {
+  document.body.classList.add('dark');
+}
+
+// Създаваме бутончето (ако го няма)
+document.addEventListener('DOMContentLoaded', () => {
+  let btn = document.getElementById('global-dark-toggle');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'global-dark-toggle';
+    btn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
+    btn.style.cssText = `
+      position:fixed; top:15px; right:15px; z-index:99999;
+      background:rgba(0,0,0,0.7); color:white; border:none; padding:10px 18px;
+      border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
+      box-shadow:0 4px 20px rgba(0,0,0,0.5); backdrop-filter:blur(10px);
+    `;
+    document.body.appendChild(btn);
+
+    btn.onclick = () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      localStorage.setItem('dark', isDark);
+      btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    };
+  }
+});
+</script>
+
+<style>
+/* ТЪМНА ТЕМА – работи за всички твои страници */
+body.dark { background:#0d1117 !important; color:#c9d1d9 !important; }
+body.dark .container,
+body.dark .main,
+body.dark .qblock,
+body.dark .test-card { background:#161b22 !important; }
+body.dark input,
+body.dark select,
+body.dark textarea { background:#0d1117 !important; color:#c9d1d9 !important; border-color:#30363d !important; }
+body.dark hr { border-color:#30363d !important; }
+body.dark .open-hint { background:#0d1117 !important; border-left-color:#58a6ff !important; color:#8b949e !important; }
+body.dark .multi-count-options { background:#2d1a00 !important; color:#fff !important; }
+body.dark table { background:#161b22 !important; }
+body.dark th { background:#1f6feb !important; }
+</style>
+</body>
+</html>

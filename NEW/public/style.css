@@ -1,0 +1,50 @@
+body { font-family: Arial; background: #f0f0f0; margin: 0; padding: 20px; }
+.container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+h1, h2 { color: #333; text-align: center; }
+button { padding: 12px 20px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+button:hover { opacity: 0.9; }
+.green { background: #00c851; color: white; }
+.red { background: #7e3ce7; color: white; }
+.btn { background: #4a90e2; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; display: inline-block; }
+.test-item, .qblock { background: #f9f9f9; padding: 20px; margin: 15px 0; border-radius: 10px; border: 1px solid #ddd; }
+input[type=text], /* FIXED TEXTAREA FOR OPEN QUESTIONS – SAME ON CREATE AND TAKE */
+textarea {
+    width: 100% !important;
+    min-height: 140px !important;
+    padding: 15px !important;
+    margin-top: 10px !important;
+    font-size: 16px !important;
+    font-family: Arial, sans-serif !important;
+    border: 2px solid #ccc !important;
+    border-radius: 10px !important;
+    resize: none !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+}
+
+textarea:focus {
+    outline: none !important;
+    border-color: #4a90e2 !important;
+    box-shadow: 0 0 10px rgba(74,144,226,0.3) !important;
+}
+body.dark {
+  background: #0d1117 !important;
+}
+body.dark .container,
+body.dark .main,
+body.dark .qblock,
+body.dark .test-card,
+body.dark table { 
+  background: #161b22 !important; 
+  color: #c9d1d9 !important; 
+}
+body.dark input, 
+body.dark select, 
+body.dark textarea {
+  background: #0d1117 !important;
+  color: #c9d1d9 !important;
+  border-color: #30363d !important;
+}
+body.dark hr { border-color: #30363d !important; }
+body.dark .open-hint { background: #0d1117 !important; border-left-color: #58a6ff !important; }
+body.dark .multi-count-options { background: #2d2300 !important; }
