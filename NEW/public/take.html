@@ -5,7 +5,6 @@
   <title>Решаване на тест</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Page specific styles */
     body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     body.dark { background: #0d1117; }
 
@@ -51,6 +50,7 @@
       transition: width 0.6s ease;
     }
     .student-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+    
     label { display: block; margin: 14px 0; font-size: 17px; cursor: pointer; }
     input[type="radio"], input[type="checkbox"] { transform: scale(1.3); margin-right: 12px; accent-color: #4361ee; }
     
@@ -61,6 +61,7 @@
     }
     .btn-submit:hover { filter: brightness(110%); transform: translateY(-3px); }
   </style>
+  
 </head>
 <body>
   <div class="container" style="padding:0;">
@@ -71,16 +72,16 @@
         <div>Решени: <strong id="answered">0</strong> от <strong id="totalQ">0</strong></div>
       </div>
 
-      <div class="student-inputs">
-        <input type="text" id="studentName" placeholder="Име и фамилия" required>
-        <input type="text" id="studentClass" placeholder="Клас (напр. 10А)">
-      </div>
-
-      <div class="progress-container">
-        <div class="progress" id="progress"></div>
-      </div>
-
       <form id="quiz">
+        <div class="student-inputs">
+          <input type="text" id="studentName" placeholder="Име и фамилия" required>
+          <input type="text" id="studentClass" placeholder="Клас (напр. 10А)" required>
+        </div>
+
+        <div class="progress-container">
+          <div class="progress" id="progress"></div>
+        </div>
+
         <div id="questions"></div>
         <button type="submit" class="btn-submit">Предай теста</button>
       </form>
@@ -106,10 +107,20 @@
       const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
       const s = String(timeLeft % 60).padStart(2, '0');
       timerEl.textContent = `${m}:${s}`;
+      
       if (timeLeft <= 300) timerEl.classList.add('warning');
+      
       if (timeLeft <= 0) {
         clearInterval(timerInterval);
-        alert('Времето изтече!');
+        
+        // LOCK QUESTIONS so answers cannot be changed
+        const qDiv = document.getElementById('questions');
+        qDiv.style.pointerEvents = 'none';
+        qDiv.style.opacity = '0.6';
+        
+        alert('Времето изтече! Моля попълнете име и клас, за да предадете.');
+        
+        // Try to submit (will trigger validation if fields are empty)
         document.querySelector('.btn-submit').click();
       }
     }, 1000);
@@ -140,7 +151,9 @@
           el.addEventListener('change', () => {
             const answered = new Set();
             document.querySelectorAll('[name^="q"]').forEach(inp => {
-              if ((inp.type === 'radio' && inp.checked) || (inp.type === 'checkbox' && inp.checked) || (inp.tagName === 'TEXTAREA' && inp.value.trim())) {
+              if ((inp.type === 'radio' && inp.checked) || 
+                  (inp.type === 'checkbox' && inp.checked) || 
+                  (inp.tagName === 'TEXTAREA' && inp.value.trim())) {
                 answered.add(inp.name);
               }
             });
@@ -159,6 +172,15 @@
 
     document.getElementById('quiz').onsubmit = async e => {
       e.preventDefault();
+      
+      // Extra check just to be safe
+      const sName = document.getElementById('studentName').value.trim();
+      const sClass = document.getElementById('studentClass').value.trim();
+      if(!sName || !sClass) {
+          alert('Моля, попълнете полетата за Име и Клас!');
+          return;
+      }
+
       clearInterval(timerInterval);
 
       const fd = new FormData(e.target);
@@ -169,13 +191,21 @@
           else answers[k] = [answers[k], v];
         } else answers[k] = v;
       }
-      answers.studentName = document.getElementById('studentName').value.trim() || 'Анонимен';
-      answers.studentClass = document.getElementById('studentClass').value.trim() || '';
 
-      await fetch('/api/grade/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answers) });
+      answers.studentName = sName;
+      answers.studentClass = sClass;
+
+      await fetch('/api/grade/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(answers)
+      });
+
       document.getElementById('result').style.display = 'block';
-      e.target.querySelector('button').disabled = true;
-      e.target.querySelector('button').textContent = 'Предаден';
+      // Hide the form so they can't resubmit
+      document.getElementById('quiz').style.display = 'none';
+      document.querySelector('.info-bar').style.display = 'none';
+      document.querySelector('.progress-container').style.display = 'none';
     };
 
     // Dark Mode

@@ -164,4 +164,216 @@ body.dark input, body.dark select, body.dark textarea, body.dark .points-select,
 
 body.dark input:focus, body.dark textarea:focus, body.dark select:focus {
     border-color: #58a6ff;
+}/* === GLOBAL STYLES === */
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #f0f0f0; 
+    margin: 0; 
+    padding: 20px; 
+    color: #333;
+    transition: background 0.3s, color 0.3s;
+}
+
+.container { 
+    max-width: 1000px; 
+    margin: 40px auto; 
+    background: white; 
+    padding: 40px; 
+    border-radius: 20px; 
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15); 
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+h1, h2, h3 { 
+    color: #2c3e50; 
+    text-align: center; 
+}
+
+/* === GLOWING SHINY BUTTONS === */
+button, .btn, .share-btn {
+    padding: 12px 26px;
+    margin: 8px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-block;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+
+    /* Base Blue Background */
+    background-color: #4a90e2;
+    
+    /* Shiny Gradient Overlay + Depth */
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 100%);
+    
+    /* THE GLOW: Colored shadow matching the button + Inner highlight */
+    box-shadow: 
+        0 5px 15px rgba(74, 144, 226, 0.4),  /* The Glow */
+        inset 0 1px 0 rgba(255,255,255,0.6), /* Top Shine */
+        inset 0 -2px 5px rgba(0,0,0,0.1);    /* Bottom Shadow */
+    
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+}
+
+button:hover, .btn:hover, .share-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    filter: brightness(110%);
+    
+    /* Stronger Glow on Hover */
+    box-shadow: 
+        0 10px 25px rgba(74, 144, 226, 0.6), 
+        inset 0 1px 0 rgba(255,255,255,0.8),
+        inset 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+button:active, .btn:active, .share-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(74, 144, 226, 0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* === BUTTON COLOR VARIANTS (WITH MATCHING GLOWS) === */
+
+/* Green (Success/Create) */
+.green, .btn-save, .create, .share-btn { 
+    background-color: #06d6a0 !important; 
+    box-shadow: 0 5px 15px rgba(6, 214, 160, 0.4), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+}
+.green:hover, .btn-save:hover, .create:hover, .share-btn:hover {
+    box-shadow: 0 10px 25px rgba(6, 214, 160, 0.6), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* Red (Delete/Danger) */
+.red, .btn-delete, .btn-danger { 
+    background-color: #ef476f !important; 
+    box-shadow: 0 5px 15px rgba(239, 71, 111, 0.4), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+}
+.red:hover, .btn-delete:hover, .btn-danger:hover {
+    box-shadow: 0 10px 25px rgba(239, 71, 111, 0.6), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* Purple (Dashboard) */
+.dashboard { 
+    background-color: #7209b7 !important; 
+    box-shadow: 0 5px 15px rgba(114, 9, 183, 0.4), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+}
+.dashboard:hover {
+    box-shadow: 0 10px 25px rgba(114, 9, 183, 0.6), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* Dark Blue (Back/View) */
+.back-btn, .btn-view {
+    background-color: #4361ee !important;
+    box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4), inset 0 1px 0 rgba(255,255,255,0.6) !important;
+}
+.back-btn:hover, .btn-view:hover {
+    box-shadow: 0 10px 25px rgba(67, 97, 238, 0.6), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+.back-btn { 
+    display: block; width: fit-content; margin: 50px auto 0; 
+    padding: 15px 60px; font-size: 20px; 
+}
+
+/* === SUBMISSION & DASHBOARD SPECIFICS === */
+.info-box {
+    background: #f0f4ff; 
+    padding: 20px; 
+    border-radius: 12px; 
+    margin-bottom: 30px;
+    border: 1px solid #dce6f1;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.points-select {
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 2px solid #4a90e2;
+    background: white;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+/* === CARDS & BLOCKS === */
+.test-card, .qblock { 
+    background: #f9f9f9; 
+    padding: 30px; 
+    margin: 30px 0; 
+    border-radius: 15px; 
+    border: 1px solid #eee;
+    border-left: 6px solid #4361ee;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+/* === TABLES === */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    margin-top: 15px;
+}
+th { background: #4361ee; color: white; padding: 18px; text-align: left; }
+td { padding: 15px 18px; border-bottom: 1px solid #eee; }
+tr:hover { background-color: #f0f4ff; }
+
+/* === INPUTS === */
+input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+textarea { min-height: 120px; resize: vertical; }
+input:focus, select:focus, textarea:focus {
+    outline: none; border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+}
+
+/* === DARK MODE === */
+body.dark { background: #0d1117; color: #e6edf3; }
+body.dark .container { background: #161b22; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+body.dark h1, body.dark h2, body.dark h3, body.dark label, body.dark strong, body.dark small { color: #e6edf3 !important; }
+
+body.dark .test-card, 
+body.dark .qblock,
+body.dark .info-bar {
+    background: #21262d;
+    border-color: #30363d;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* Specific Dark Mode Elements */
+body.dark .info-box {
+    background: #21262d;
+    border-color: #30363d;
+    color: #e6edf3;
+}
+
+body.dark table { background: #21262d; }
+body.dark th { background: #1f6feb; }
+body.dark td { border-bottom-color: #30363d; color: #e6edf3; }
+body.dark tr:hover { background-color: #30363d !important; }
+
+body.dark input, body.dark select, body.dark textarea, body.dark .points-select, body.dark .grade-select {
+    background: #0d1117;
+    border-color: #30363d;
+    color: #e6edf3;
+}
+
+body.dark input:focus, body.dark textarea:focus, body.dark select:focus {
+    border-color: #58a6ff;
 }
