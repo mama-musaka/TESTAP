@@ -5,37 +5,28 @@
   <title>Учителски дашборд</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    :root { --primary:#4361ee; --success:#06d6a0; --danger:#ef476f; }
-    body { margin:0; background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; font-family:'Segoe UI',sans-serif; }
-    .container { max-width:1300px; margin:40px auto; background:white; border-radius:20px; overflow:hidden; box-shadow:0 25px 70px rgba(0,0,0,0.25); }
-    header { background:linear-gradient(135deg,var(--primary),#5d7bff); color:white; padding:40px; text-align:center; font-size:42px; font-weight:bold; }
-    .main { padding:50px; }
-    h2 { text-align:center; color:#2c3e50; margin-bottom:50px; font-size:32px; }
-    .test-card { background:#f8f9fa; border-radius:20px; padding:40px; margin-bottom:40px; box-shadow:0 15px 45px rgba(0,0,0,0.1); border-left:8px solid var(--primary); }
-    .test-card h3 { margin:0 0 30px; color:#2c3e50; font-size:30px; }
-    table { width:100%; border-collapse:collapse; background:white; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.1); }
-    th { background:var(--primary); color:white; padding:20px; font-size:18px; }
-    td { padding:18px 20px; border-bottom:1px solid #eee; font-size:17px; }
-    tr:hover { background:#f0f4ff; }
-    .grade-select { padding:12px 16px; font-size:17px; border:2px solid #ddd; border-radius:10px; background:white; }
-    .btn { padding:12px 28px; margin:0 8px; border:none; border-radius:12px; cursor:pointer; font-weight:bold; color:white; text-decoration:none; display:inline-block; }
-    .btn-view { background:var(--primary); box-shadow:0 8px 25px rgba(67,97,238,0.4); }
-    .btn-save { background:var(--success); box-shadow:0 8px 25px rgba(6,214,160,0.4); }
-    .btn-delete { background:var(--danger); box-shadow:0 8px 25px rgba(239,71,111,0.4); }
-    .btn:hover { transform:translateY(-3px); }
-    .back-btn { display:block; width:fit-content; margin:70px auto 0; padding:22px 100px; background:var(--primary); color:white; font-size:28px; font-weight:bold; border-radius:60px; text-decoration:none; box-shadow:0 20px 50px rgba(67,97,238,0.5); }
-    .back-btn:hover { background:#3550d4; transform:translateY(-5px); }
-    .no-data { text-align:center; padding:80px; font-size:26px; color:#999; background:#f8f9fa; border-radius:20px; }
+    /* Only page-specific gradient override here */
+    body { background: linear-gradient(135deg,#667eea,#764ba2); }
+    body.dark { background: #0d1117; }
+    
+    header { 
+      background: linear-gradient(135deg, #4361ee, #5d7bff); 
+      color: white; 
+      padding: 40px; 
+      text-align: center; 
+      font-size: 42px; 
+      font-weight: bold; 
+    }
+    .no-data { text-align:center; padding:80px; font-size:26px; opacity: 0.6; }
   </style>
-  
 </head>
 <body>
-  <div class="container">
+  <div class="container" style="padding:0;">
     <header>Учителски дашборд</header>
-    <div class="main">
+    <div class="main" style="padding: 50px;">
       <h2>Резултати от предадените тестове</h2>
       <div id="tests">Зареждане...</div>
-      <a href="index.html" class="back-btn">Обратно към тестовете</a>
+      <a href="index.html" class="back-btn btn">Обратно към тестовете</a>
     </div>
   </div>
 
@@ -62,7 +53,7 @@
           const subs = grouped[title];
           html += `
             <div class="test-card">
-              <h3>${title} <small style="color:#777;font-size:18px;">(${subs.length} предавания)</small></h3>
+              <h3>${title} <small style="opacity:0.7; font-size:18px; margin-left: 10px;">(${subs.length} предавания)</small></h3>
               <table>
                 <thead>
                   <tr>
@@ -86,12 +77,12 @@
                     <option value="${displayGrade}" selected>${displayGrade}</option>
                     ${[2,3,4,5,6].map(g => `<option value="${g}">${g}</option>`).join('')}
                   </select>
-                  <button class="btn btn-save" onclick="saveGrade(${s.submissionId})">Запази</button>
+                  <button class="btn btn-save" onclick="saveGrade(${s.submissionId})" style="padding: 8px 15px; margin: 0 5px;">Запази</button>
                 </td>
                 <td>${new Date(s.submittedAt).toLocaleString('bg-BG')}</td>
                 <td>
-                  <a href="submission.html?id=${s.submissionId}" class="btn btn-view">Преглед</a>
-                  <button class="btn btn-delete" onclick="deleteSub(${s.submissionId})">Изтрий</button>
+                  <a href="submission.html?id=${s.submissionId}" class="btn btn-view" style="padding: 8px 15px; margin: 0 2px;">Преглед</a>
+                  <button class="btn btn-delete" onclick="deleteSub(${s.submissionId})" style="padding: 8px 15px; margin: 0 2px;">Изтрий</button>
                 </td>
               </tr>`;
           });
@@ -119,54 +110,24 @@
         location.reload();
       }
     }
+
+    // Global Dark Mode Toggle
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
+    document.addEventListener('DOMContentLoaded', () => {
+      let btn = document.getElementById('global-dark-toggle');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'global-dark-toggle';
+        btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        btn.style.cssText = 'position:fixed; top:15px; right:15px; z-index:99999; background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px; border-radius:50px; font-size:18px; cursor:pointer; backdrop-filter:blur(5px); margin:0;';
+        document.body.appendChild(btn);
+        btn.onclick = () => {
+          document.body.classList.toggle('dark');
+          localStorage.setItem('dark', document.body.classList.contains('dark'));
+          btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        };
+      }
+    });
   </script>
-  <!-- ГЛОБАЛЕН DARK MODE – сложи този код на ВСЯКА страница преди </body> -->
-<script>
-// Прилагаме текущото състояние
-if (localStorage.getItem('dark') === 'true') {
-  document.body.classList.add('dark');
-}
-
-// Създаваме бутончето (ако го няма)
-document.addEventListener('DOMContentLoaded', () => {
-  let btn = document.getElementById('global-dark-toggle');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'global-dark-toggle';
-    btn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
-    btn.style.cssText = `
-      position:fixed; top:15px; right:15px; z-index:99999;
-      background:rgba(0,0,0,0.7); color:white; border:none; padding:10px 18px;
-      border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
-      box-shadow:0 4px 20px rgba(0,0,0,0.5); backdrop-filter:blur(10px);
-    `;
-    document.body.appendChild(btn);
-
-    btn.onclick = () => {
-      document.body.classList.toggle('dark');
-      const isDark = document.body.classList.contains('dark');
-      localStorage.setItem('dark', isDark);
-      btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
-    };
-  }
-});
-</script>
-
-<style>
-/* ТЪМНА ТЕМА – работи за всички твои страници */
-body.dark { background:#0d1117 !important; color:#c9d1d9 !important; }
-body.dark .container,
-body.dark .main,
-body.dark .qblock,
-body.dark .test-card { background:#161b22 !important; }
-body.dark input,
-body.dark select,
-body.dark textarea { background:#0d1117 !important; color:#c9d1d9 !important; border-color:#30363d !important; }
-body.dark hr { border-color:#30363d !important; }
-body.dark .open-hint { background:#0d1117 !important; border-left-color:#58a6ff !important; color:#8b949e !important; }
-body.dark .multi-count-options { background:#2d1a00 !important; color:#fff !important; }
-body.dark table { background:#161b22 !important; }
-body.dark th { background:#1f6feb !important; }
-</style>
 </body>
 </html>

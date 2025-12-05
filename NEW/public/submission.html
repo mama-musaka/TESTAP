@@ -5,27 +5,23 @@
   <title>Преглед на отговор</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    body { margin:0; background:#f4f6f9; font-family:'Segoe UI',sans-serif; padding:30px; }
-    .card { max-width:900px; margin:0 auto; background:white; border-radius:15px; padding:30px; box-shadow:0 15px 40px rgba(0,0,0,0.1); }
-    h1 { color:#2c3e50; text-align:center; margin-bottom:10px; }
-    .info { background:#f0f4ff; padding:15px; border-radius:10px; margin-bottom:20px; }
-    .question { background:#fafbff; padding:20px; margin:20px 0; border-radius:12px; border-left:5px solid #4361ee; }
-    .open-answer textarea { width:100%; min-height:120px; padding:15px; border:2px solid #ddd; border-radius:10px; margin-bottom:15px; }
-    .points-select { padding:10px; font-size:18px; border-radius:8px; border:2px solid #4361ee; background:white; }
-    .save-points { background:#06d6a0; color:white; padding:10px 20px; border:none; border-radius:8px; cursor:pointer; margin-left:10px; font-weight:bold; }
-    .back-btn { display:block; width:fit-content; margin:40px auto 0; padding:18px 70px; background:#4361ee; color:white; font-size:22px; border-radius:50px; text-decoration:none; box-shadow:0 12px 35px rgba(67,97,238,0.4); text-align:center; }
-    .back-btn:hover { background:#3550d4; transform:translateY(-3px); }
+    body { background: linear-gradient(135deg,#667eea,#764ba2); }
+    body.dark { background: #0d1117; }
+    
+    .open-answer p { margin: 5px 0; }
+    /* Adjust textarea for read-only view */
+    textarea[readonly] { background: #fdfdfd; color: #555; }
+    body.dark textarea[readonly] { background: #1f2428; color: #a0a0a0; }
   </style>
-  
 </head>
 
 <body>
-  <div class="card">
+  <div class="container">
     <h1 id="title">Зареждане...</h1>
-    <div class="info" id="info"></div>
+    <div class="info-box" id="info"></div>
     <div id="answers"></div>
     <div style="text-align:center;">
-      <a href="dashboard.html" class="back-btn">Обратно към дашборда</a>
+      <a href="dashboard.html" class="back-btn btn">Обратно към дашборда</a>
     </div>
   </div>
 
@@ -53,21 +49,21 @@
           if (a.type === 'open') {
             const current = savedPoints[i] !== undefined ? savedPoints[i] : maxPoints;
             return `
-              <div class="question">
-                <h3>Въпрос ${i+1}: ${a.question} <small style="color:#666">(до ${maxPoints} т.)</small></h3>
+              <div class="qblock">
+                <h3>Въпрос ${i+1}: ${a.question} <small style="opacity:0.6">(до ${maxPoints} т.)</small></h3>
                 <div class="open-answer">
                   <p><strong>Отговор на ученика:</strong></p>
                   <textarea readonly>${a.studentAnswer || ''}</textarea>
-                  <p style="margin-top:15px; font-weight:bold;">
-                    Дай точки (1–${maxPoints}):
-                    <select class="points-select" data-index="${i}">
+                  <div style="margin-top:15px; font-weight:bold; display:flex; align-items:center; justify-content:flex-end;">
+                    <span style="margin-right:10px;">Дай точки (1–${maxPoints}):</span>
+                    <select class="points-select" style="width:auto; margin:0 10px 0 0;" data-index="${i}">
                       ${Array.from({length: maxPoints}, (_, p) => p + 1)
                         .map(p => `<option value="${p}" ${p===current?'selected':''}>${p}</option>`).join('')}
                     </select>
-                    <button class="save-points" onclick="saveOpenPoints(${submissionId},${i},this.previousElementSibling.value)">
+                    <button class="btn green" style="margin:0;" onclick="saveOpenPoints(${submissionId},${i},this.previousElementSibling.value)">
                       Запази
                     </button>
-                  </p>
+                  </div>
                 </div>
               </div>
             `;
@@ -76,11 +72,12 @@
           const correct = Array.isArray(a.correctAnswer) ? a.correctAnswer.map(n => q.options?.[n] || n).join(', ') : q.options?.[a.correctAnswer] || '';
           const student = Array.isArray(a.studentAnswer) ? a.studentAnswer.map(n => q.options?.[n] || n).join(', ') : '—';
           const color = a.isCorrect ? '#06d6a0' : '#ef476f';
+          
           return `
-            <div class="question">
-              <h3>Въпрос ${i+1}: ${a.question} <small style="color:#666">(${maxPoints} т.)</small></h3>
-              <p><strong>Верен:</strong> <span style="color:green">${correct}</span></p>
-              <p><strong>Ученик:</strong> <span style="color:${color}">${student}</span></p>
+            <div class="qblock">
+              <h3>Въпрос ${i+1}: ${a.question} <small style="opacity:0.6">(${maxPoints} т.)</small></h3>
+              <p><strong>Верен:</strong> <span style="color:#00c851; font-weight:bold;">${correct}</span></p>
+              <p><strong>Ученик:</strong> <span style="color:${color}; font-weight:bold;">${student}</span></p>
             </div>
           `;
         }).join('');
@@ -99,54 +96,24 @@
         alert('Грешка при запазване');
       }
     }
+
+    // Global Dark Mode Toggle
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
+    document.addEventListener('DOMContentLoaded', () => {
+      let btn = document.getElementById('global-dark-toggle');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'global-dark-toggle';
+        btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        btn.style.cssText = 'position:fixed; top:15px; right:15px; z-index:99999; background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px; border-radius:50px; font-size:18px; cursor:pointer; backdrop-filter:blur(5px); margin:0;';
+        document.body.appendChild(btn);
+        btn.onclick = () => {
+          document.body.classList.toggle('dark');
+          localStorage.setItem('dark', document.body.classList.contains('dark'));
+          btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        };
+      }
+    });
   </script>
-  <!-- ГЛОБАЛЕН DARK MODE – сложи този код на ВСЯКА страница преди </body> -->
-<script>
-// Прилагаме текущото състояние
-if (localStorage.getItem('dark') === 'true') {
-  document.body.classList.add('dark');
-}
-
-// Създаваме бутончето (ако го няма)
-document.addEventListener('DOMContentLoaded', () => {
-  let btn = document.getElementById('global-dark-toggle');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'global-dark-toggle';
-    btn.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
-    btn.style.cssText = `
-      position:fixed; top:15px; right:15px; z-index:99999;
-      background:rgba(0,0,0,0.7); color:white; border:none; padding:10px 18px;
-      border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
-      box-shadow:0 4px 20px rgba(0,0,0,0.5); backdrop-filter:blur(10px);
-    `;
-    document.body.appendChild(btn);
-
-    btn.onclick = () => {
-      document.body.classList.toggle('dark');
-      const isDark = document.body.classList.contains('dark');
-      localStorage.setItem('dark', isDark);
-      btn.textContent = isDark ? 'Light Mode' : 'Dark Mode';
-    };
-  }
-});
-</script>
-
-<style>
-/* ТЪМНА ТЕМА – работи за всички твои страници */
-body.dark { background:#0d1117 !important; color:#c9d1d9 !important; }
-body.dark .container,
-body.dark .main,
-body.dark .qblock,
-body.dark .test-card { background:#161b22 !important; }
-body.dark input,
-body.dark select,
-body.dark textarea { background:#0d1117 !important; color:#c9d1d9 !important; border-color:#30363d !important; }
-body.dark hr { border-color:#30363d !important; }
-body.dark .open-hint { background:#0d1117 !important; border-left-color:#58a6ff !important; color:#8b949e !important; }
-body.dark .multi-count-options { background:#2d1a00 !important; color:#fff !important; }
-body.dark table { background:#161b22 !important; }
-body.dark th { background:#1f6feb !important; }
-</style>
 </body>
 </html>
