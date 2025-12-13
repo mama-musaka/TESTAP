@@ -5,30 +5,47 @@
   <title>Тестова система</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Gradient Background override for index page */
-    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    body.dark { background: #0d1117; } /* Override gradient in dark mode */
+    /* Specific layout for the landing page */
+    .actions { 
+        margin-top: 25px; 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 15px; 
+        justify-content: flex-start;
+    }
     
-    .container { max-width:1000px; margin:40px auto; text-align:center; padding: 50px; }
-    h1 { font-size:48px; margin-bottom:20px; color: #2c3e50; }
-    body.dark h1 { color: #fff; }
-
-    .actions { margin-top:20px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:flex-start; }
-    .copied { color:#06d6a0; font-weight:bold; opacity:0; transition:opacity 0.5s; font-size:16px; margin-left:10px; }
+    .copied { 
+        color: #06d6a0; 
+        font-weight: bold; 
+        opacity: 0; 
+        transition: opacity 0.5s; 
+        font-size: 14px; 
+        align-self: center;
+    }
+    
+    .btn-group-main {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 50px;
+        flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Тестова система</h1>
 
-    <a href="create.html" class="btn create">Създай нов тест</a>
-    <a href="dashboard.html" class="btn dashboard">Учителски дашборд</a>
+    <div class="btn-group-main">
+        <a href="create.html" class="btn create">+ Създай нов тест</a>
+        <a href="dashboard.html" class="btn dashboard">Учителски дашборд</a>
+    </div>
 
-    <div style="margin-top:80px;">
+    <div style="margin-top:60px; text-align: left;">
       <h2>Създадени тестове</h2>
       <div id="list"></div>
-      <p id="empty" style="font-size:22px; margin-top:50px; display:none; opacity: 0.6;">
-        Все още няма създадени тестове
+      <p id="empty" style="text-align:center; font-size:20px; margin-top:50px; display:none; opacity: 0.6;">
+        Все още няма създадени тестове.
       </p>
     </div>
   </div>
@@ -37,7 +54,6 @@
     function shareTest(id) {
       const link = window.location.origin + window.location.pathname.replace(/index\.html.*$/, '') + 'take.html?id=' + id;
       navigator.clipboard.writeText(link).then(() => {
-        // Find the copied message associated with the clicked button
         const btn = event.target;
         const msg = btn.nextElementSibling; 
         if(msg && msg.classList.contains('copied')) {
@@ -60,24 +76,14 @@
         const html = tests.map(t => `
           <div class="test-card">
             <h3>${t.title}</h3>
-            <p style="opacity: 0.7; font-size:18px; margin:10px 0;">
-              Въпроси: <strong>${t.question_count}</strong>
-            </p>
+            <p>Въпроси: <strong>${t.question_count}</strong></p>
 
             <div class="actions">
-              <a href="take.html?id=${t.id}" class="btn green" style="text-decoration:none; margin:0;">
-                Решаване
-              </a>
-
-              <button onclick="shareTest(${t.id})" class="share-btn" style="background:#25d366; margin:0;">
-                Сподели
-              </button>
+              <a href="take.html?id=${t.id}" class="btn green" style="margin:0">Решаване</a>
+              <button onclick="shareTest(${t.id})" class="share-btn" style="margin:0">Сподели</button>
               <span class="copied">Копирано!</span>
-
               <button onclick="if(confirm('Изтриване на „${t.title}“?')) fetch('/api/tests/${t.id}',{method:'DELETE'}).then(()=>location.reload())"
-                      class="btn red" style="margin:0;">
-                Изтрий
-              </button>
+                      class="btn red" style="margin:0; margin-left:auto;">Изтрий</button>
             </div>
           </div>
         `).join('');
@@ -85,33 +91,23 @@
         document.getElementById('list').innerHTML = html;
       })
       .catch(() => {
-        document.getElementById('list').innerHTML = '<p style="color:red;">Грешка при зареждане!</p>';
+        document.getElementById('list').innerHTML = '<p style="color:red; text-align:center;">Грешка при зареждане!</p>';
       });
 
-    // Global Dark Mode Toggle Script
-    if (localStorage.getItem('dark') === 'true') {
-      document.body.classList.add('dark');
-    }
-
+    // Dark Mode Toggle
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
     document.addEventListener('DOMContentLoaded', () => {
       let btn = document.getElementById('global-dark-toggle');
       if (!btn) {
         btn = document.createElement('button');
         btn.id = 'global-dark-toggle';
-        btn.textContent = document.body.classList.contains('dark') ? '☀ Light' : '☾ Dark';
-        btn.style.cssText = `
-          position:fixed; top:15px; right:15px; z-index:99999;
-          background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px;
-          border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
-          backdrop-filter:blur(5px); margin:0;
-        `;
+        btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+        btn.style.cssText = 'position:fixed; top:20px; right:20px; z-index:9999; background:rgba(0,0,0,0.5); width:40px; height:40px; padding:0; border-radius:50%; font-size:20px; backdrop-filter:blur(5px); margin:0; display:flex; align-items:center; justify-content:center; box-shadow:none;';
         document.body.appendChild(btn);
-
         btn.onclick = () => {
           document.body.classList.toggle('dark');
-          const isDark = document.body.classList.contains('dark');
-          localStorage.setItem('dark', isDark);
-          btn.textContent = isDark ? '☀ Light' : '☾ Dark';
+          localStorage.setItem('dark', document.body.classList.contains('dark'));
+          btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
         };
       }
     });
