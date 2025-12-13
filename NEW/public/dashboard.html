@@ -4,30 +4,12 @@
   <meta charset="utf-8">
   <title>Учителски дашборд</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    /* Only page-specific gradient override here */
-    body { background: linear-gradient(135deg,#667eea,#764ba2); }
-    body.dark { background: #0d1117; }
-    
-    header { 
-      background: linear-gradient(135deg, #4361ee, #5d7bff); 
-      color: white; 
-      padding: 40px; 
-      text-align: center; 
-      font-size: 42px; 
-      font-weight: bold; 
-    }
-    .no-data { text-align:center; padding:80px; font-size:26px; opacity: 0.6; }
-  </style>
 </head>
 <body>
-  <div class="container" style="padding:0;">
-    <header>Учителски дашборд</header>
-    <div class="main" style="padding: 50px;">
-      <h2>Резултати от предадените тестове</h2>
-      <div id="tests">Зареждане...</div>
-      <a href="index.html" class="back-btn btn">Обратно към тестовете</a>
-    </div>
+  <div class="container">
+    <h1>Учителски дашборд</h1>
+    <div id="tests" style="margin-top: 40px;">Зареждане...</div>
+    <a href="index.html" class="back-btn btn">Обратно към таблото</a>
   </div>
 
   <script>
@@ -35,9 +17,8 @@
       .then(r => r.json())
       .then(data => {
         const container = document.getElementById('tests');
-
         if (!data || data.length === 0) {
-          container.innerHTML = '<div class="no-data">Все още няма предадени тестове</div>';
+          container.innerHTML = '<div style="text-align:center; padding:40px; font-size:1.2rem; color:var(--text-muted);">Няма намерени резултати.</div>';
           return;
         }
 
@@ -52,19 +33,22 @@
         Object.keys(grouped).forEach(title => {
           const subs = grouped[title];
           html += `
-            <div class="test-card">
-              <h3>${title} <small style="opacity:0.7; font-size:18px; margin-left: 10px;">(${subs.length} предавания)</small></h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ученик</th>
-                    <th>Клас</th>
-                    <th>Оценка</th>
-                    <th>Предаден на</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody>`;
+            <div class="test-card" style="display:block; padding:0; overflow:hidden;">
+              <div style="padding:20px; border-bottom:1px solid #eee; background:rgba(0,0,0,0.02);">
+                 <h3 style="margin:0;">${title} <span style="font-weight:400; font-size:0.8em; opacity:0.7">(${subs.length} предадени)</span></h3>
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="margin:0; box-shadow:none; border-radius:0;">
+                  <thead>
+                    <tr>
+                      <th>Ученик</th>
+                      <th>Клас</th>
+                      <th>Оценка</th>
+                      <th>Дата</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>`;
 
           subs.forEach(s => {
             const displayGrade = (s.manualGrade && s.manualGrade !== '—') ? s.manualGrade : s.autoGrade;
@@ -77,17 +61,17 @@
                     <option value="${displayGrade}" selected>${displayGrade}</option>
                     ${[2,3,4,5,6].map(g => `<option value="${g}">${g}</option>`).join('')}
                   </select>
-                  <button class="btn btn-save" onclick="saveGrade(${s.submissionId})" style="padding: 8px 15px; margin: 0 5px;">Запази</button>
+                  <button class="btn green" onclick="saveGrade(${s.submissionId})" style="padding:6px 12px; font-size:13px; margin:0;">OK</button>
                 </td>
                 <td>${new Date(s.submittedAt).toLocaleString('bg-BG')}</td>
                 <td>
-                  <a href="submission.html?id=${s.submissionId}" class="btn btn-view" style="padding: 8px 15px; margin: 0 2px;">Преглед</a>
-                  <button class="btn btn-delete" onclick="deleteSub(${s.submissionId})" style="padding: 8px 15px; margin: 0 2px;">Изтрий</button>
+                  <a href="submission.html?id=${s.submissionId}" class="btn dashboard" style="padding:6px 12px; font-size:13px; margin:0 5px;">Виж</a>
+                  <button class="btn red" onclick="deleteSub(${s.submissionId})" style="padding:6px 12px; font-size:13px; margin:0;">Изтрий</button>
                 </td>
               </tr>`;
           });
 
-          html += `</tbody></table></div>`;
+          html += `</tbody></table></div></div>`;
         });
 
         container.innerHTML = html;
@@ -95,39 +79,22 @@
 
     async function saveGrade(id) {
       const select = document.querySelector(`select[data-id="${id}"]`);
-      const grade = select.value;
       await fetch('/api/grade-manual/' + id, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manualGrade: grade })
+        body: JSON.stringify({ manualGrade: select.value })
       });
       alert('Оценката е запазена!');
     }
 
     async function deleteSub(id) {
-      if (confirm('Наистина ли искате да изтриете този резултат?')) {
+      if (confirm('Сигурни ли сте?')) {
         await fetch('/api/submissions/' + id, { method: 'DELETE' });
         location.reload();
       }
     }
-
-    // Global Dark Mode Toggle
+    
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
-    document.addEventListener('DOMContentLoaded', () => {
-      let btn = document.getElementById('global-dark-toggle');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'global-dark-toggle';
-        btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
-        btn.style.cssText = 'position:fixed; top:15px; right:15px; z-index:99999; background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px; border-radius:50px; font-size:18px; cursor:pointer; backdrop-filter:blur(5px); margin:0;';
-        document.body.appendChild(btn);
-        btn.onclick = () => {
-          document.body.classList.toggle('dark');
-          localStorage.setItem('dark', document.body.classList.contains('dark'));
-          btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
-        };
-      }
-    });
   </script>
 </body>
 </html>
