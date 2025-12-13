@@ -4,10 +4,18 @@
   <meta charset="utf-8">
   <title>Учителски дашборд</title>
   <link rel="stylesheet" href="style.css">
+  <script>
+      // Auth Check
+      const user = JSON.parse(localStorage.getItem('user'));
+      if(!user || (user.role !== 'teacher' && user.role !== 'admin')) {
+          alert('Нямате права за достъп!');
+          window.location.href = 'index.html';
+      }
+  </script>
 </head>
 <body>
   <div class="container">
-    <h1>Учителски дашборд</h1>
+    <h1>📝 Учителски дашборд</h1>
     <div id="tests" style="margin-top: 40px;">Зареждане...</div>
     <a href="index.html" class="back-btn btn">Обратно към таблото</a>
   </div>
@@ -23,6 +31,7 @@
         }
 
         let html = '';
+        // Group submissions by Test Title
         const grouped = data.reduce((acc, s) => {
           const title = s.testTitle || 'Без заглавие';
           if (!acc[title]) acc[title] = [];
@@ -52,20 +61,23 @@
 
           subs.forEach(s => {
             const displayGrade = (s.manualGrade && s.manualGrade !== '—') ? s.manualGrade : s.autoGrade;
+            // Determine badge color based on grade
+            let badgeColor = '#3498db'; // Default blue
+            if(displayGrade >= 5.50) badgeColor = '#06d6a0'; // Green
+            else if(displayGrade < 3.00) badgeColor = '#ef476f'; // Red
+            
             html += `
               <tr>
                 <td><strong>${s.studentName || 'Анонимен'}</strong></td>
                 <td>${s.studentClass || '—'}</td>
                 <td>
-                  <select class="grade-select" data-id="${s.submissionId}">
-                    <option value="${displayGrade}" selected>${displayGrade}</option>
-                    ${[2,3,4,5,6].map(g => `<option value="${g}">${g}</option>`).join('')}
-                  </select>
-                  <button class="btn green" onclick="saveGrade(${s.submissionId})" style="padding:6px 12px; font-size:13px; margin:0;">OK</button>
+                  <span style="background:${badgeColor}20; color:${badgeColor}; padding:4px 8px; border-radius:4px; font-weight:bold;">
+                    ${displayGrade}
+                  </span>
                 </td>
                 <td>${new Date(s.submittedAt).toLocaleString('bg-BG')}</td>
                 <td>
-                  <a href="submission.html?id=${s.submissionId}" class="btn dashboard" style="padding:6px 12px; font-size:13px; margin:0 5px;">Виж</a>
+                  <a href="submission.html?id=${s.submissionId}" class="btn dashboard" style="padding:6px 12px; font-size:13px; margin:0 5px;">Виж & Оцени</a>
                   <button class="btn red" onclick="deleteSub(${s.submissionId})" style="padding:6px 12px; font-size:13px; margin:0;">Изтрий</button>
                 </td>
               </tr>`;
@@ -73,27 +85,17 @@
 
           html += `</tbody></table></div></div>`;
         });
-
         container.innerHTML = html;
       });
 
-    async function saveGrade(id) {
-      const select = document.querySelector(`select[data-id="${id}"]`);
-      await fetch('/api/grade-manual/' + id, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manualGrade: select.value })
-      });
-      alert('Оценката е запазена!');
-    }
-
     async function deleteSub(id) {
-      if (confirm('Сигурни ли сте?')) {
+      if (confirm('Сигурни ли сте, че искате да изтриете този отговор?')) {
         await fetch('/api/submissions/' + id, { method: 'DELETE' });
         location.reload();
       }
     }
     
+    // Apply Dark Mode
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
   </script>
 </body>

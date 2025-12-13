@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Вход - Тестова Система</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-page">
+  <div class="container auth-container">
+    <div style="text-align:center;">
+        <h1>🔐 Вход</h1>
+        <p>Моля, влезте в профила си</p>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+        <label>Потребителско име</label>
+        <input type="text" id="username" required>
+        
+        <label>Парола</label>
+        <input type="password" id="password" required>
+        
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:20px;">ВЛЕЗ</button>
+    </form>
+
+    <div style="text-align:center; margin-top:20px;">
+        <p>Нямате акаунт? <a href="register.html" style="color:var(--primary); font-weight:bold;">Регистрация</a></p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            window.location.href = 'index.html';
+        } else {
+            alert(data.error);
+        }
+    };
+  </script>
+</body>
+</html>

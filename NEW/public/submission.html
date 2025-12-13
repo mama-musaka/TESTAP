@@ -5,7 +5,6 @@
   <title>Преглед на отговор</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Local styles for layout */
     .review-panel {
         background: #fdfdfd;
         border: 2px solid #e0e0e0;
@@ -37,6 +36,13 @@
     .final-grade-row {
         display: flex; align-items: center; justify-content: flex-end; gap: 15px;
     }
+    
+    /* Styled Select for Grade */
+    .grade-select {
+        font-weight: bold;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+    }
   </style>
 </head>
 
@@ -56,7 +62,7 @@
         
         <div class="final-grade-row">
             <label style="font-weight:bold; font-size:1.1rem;">Крайна Оценка:</label>
-            <select id="finalGrade" class="grade-select" style="font-size:1.1rem; padding:8px 15px;">
+            <select id="finalGrade" class="grade-select" style="font-size:1.1rem; padding:8px 15px;" onchange="updateGradeColor(this)">
                 <option value="—">—</option>
                 <option value="2">2.00 (Слаб)</option>
                 <option value="3">3.00 (Среден)</option>
@@ -81,18 +87,28 @@
       .then(r => r.json())
       .then(data => {
         document.getElementById('title').textContent = `${data.studentName} – ${data.testTitle}`;
+        
+        // Color for Auto Grade
+        const ag = parseFloat(data.autoGrade || 0);
+        let agColor = '#333';
+        if(ag >= 5.50) agColor = '#06d6a0';
+        else if(ag >= 4.50) agColor = '#3498db';
+        else if(ag < 3.00) agColor = '#ef476f';
+
         document.getElementById('info').innerHTML = `
           <strong>Клас:</strong> ${data.studentClass || '—'}<br>
           <strong>Предаден на:</strong> ${new Date(data.submittedAt).toLocaleString('bg-BG')}<br>
-          <strong>Автоматична оценка:</strong> ${data.autoGrade || '—'}
+          <strong>Автоматична оценка:</strong> <span style="color:${agColor}; font-weight:bold; font-size:1.2em;">${data.autoGrade || '—'}</span>
         `;
 
         if(data.teacherComment) document.getElementById('teacherComment').value = data.teacherComment;
         
         const currentGrade = (data.manualGrade && data.manualGrade !== '—') ? Math.round(data.manualGrade) : Math.round(data.autoGrade);
+        const sel = document.getElementById('finalGrade');
         if(currentGrade >= 2 && currentGrade <= 6) {
-             document.getElementById('finalGrade').value = currentGrade;
+             sel.value = currentGrade;
         }
+        updateGradeColor(sel); // Set initial color
 
         let savedPoints = {};
         try { savedPoints = JSON.parse(data.manualPoints || '{}'); } catch(e) {}
@@ -140,6 +156,22 @@
         }).join('');
         document.getElementById('answers').innerHTML = html;
       });
+
+    // Color Logic for Grade Dropdown
+    function updateGradeColor(select) {
+        const val = parseFloat(select.value);
+        let color = '#333';
+        let bg = '#fff';
+        
+        if (val >= 5.50) { color = '#06d6a0'; bg = '#e6fffa'; } // Green
+        else if (val >= 4.50) { color = '#3498db'; bg = '#eef7ff'; } // Blue
+        else if (val >= 3.50) { color = '#f1c40f'; bg = '#fff9db'; } // Yellow
+        else if (val >= 2.00) { color = '#ef476f'; bg = '#fff5f5'; } // Red
+        
+        select.style.color = color;
+        select.style.borderColor = color;
+        select.style.backgroundColor = bg;
+    }
 
     async function saveOpenPoints(submissionId, questionIndex, points) {
       const res = await fetch('/api/submission-points/' + submissionId, {

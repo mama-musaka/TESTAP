@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Регистрация - Тестова Система</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+      /* Toggle logic for showing/hiding fields */
+      .hidden { display: none; }
+  </style>
+</head>
+<body class="auth-page">
+  <div class="container auth-container">
+    <div style="text-align:center;">
+        <h1>📝 Регистрация</h1>
+        <p>Създайте нов профил</p>
+    </div>
+
+    <form id="regForm" class="auth-form">
+        <label>Вид профил:</label>
+        <select id="role" onchange="toggleFields()" required>
+            <option value="student">Ученик</option>
+            <option value="teacher">Учител</option>
+            <option value="admin">Администратор</option>
+        </select>
+
+        <label>Потребителско име (за вход)</label>
+        <input type="text" id="username" required>
+        
+        <label>Парола</label>
+        <input type="password" id="password" required>
+
+        <div id="nameField">
+            <label>Име и Фамилия</label>
+            <input type="text" id="fullName" placeholder="Иван Петров">
+        </div>
+
+        <div id="classField">
+            <label>Клас</label>
+            <input type="text" id="studentClass" placeholder="10А">
+        </div>
+
+        <div id="secretField" class="hidden">
+            <label style="color:#e74c3c;">🔑 Код за достъп (само за учители)</label>
+            <input type="password" id="secretCode" placeholder="Въведете код">
+            <small>Код за учители: TEACHER123 | Код за админ: ADMIN123</small>
+        </div>
+        
+        <button type="submit" class="btn green" style="width:100%; margin-top:20px;">СЪЗДАЙ ПРОФИЛ</button>
+    </form>
+
+    <div style="text-align:center; margin-top:20px;">
+        <p>Имате акаунт? <a href="login.html" style="color:var(--primary); font-weight:bold;">Вход</a></p>
+    </div>
+  </div>
+
+  <script>
+    function toggleFields() {
+        const role = document.getElementById('role').value;
+        const secret = document.getElementById('secretField');
+        const classF = document.getElementById('classField');
+        
+        if (role === 'teacher' || role === 'admin') {
+            secret.classList.remove('hidden');
+            classF.classList.add('hidden');
+        } else {
+            secret.classList.add('hidden');
+            classF.classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('regForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const role = document.getElementById('role').value;
+        const body = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: role,
+            fullName: document.getElementById('fullName').value,
+            studentClass: role === 'student' ? document.getElementById('studentClass').value : '',
+            secretCode: role !== 'student' ? document.getElementById('secretCode').value : ''
+        };
+
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert('Регистрацията успешна! Моля влезте.');
+            window.location.href = 'login.html';
+        } else {
+            alert(data.error);
+        }
+    };
+  </script>
+</body>
+</html>
