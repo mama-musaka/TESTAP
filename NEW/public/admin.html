@@ -13,11 +13,28 @@
   </script>
   <style>
       /* Two Column Admin Layout */
-      .admin-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 25px; }
-      @media (max-width: 800px) { .admin-layout { grid-template-columns: 1fr; } }
+      .admin-layout { 
+          display: grid; 
+          grid-template-columns: 1fr 2fr; 
+          gap: 25px; 
+          align-items: start; /* Prevents stretching */
+      }
+      @media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } }
       
       .edit-form { background: #fdfdfd; padding: 20px; border-radius: 12px; border: 2px solid #e0e0e0; }
       body.dark .edit-form { background: #21262d; border-color: #30363d; }
+
+      /* Quick Links Horizontal Layout */
+      .quick-links-row {
+          display: flex;
+          gap: 15px;
+          flex-wrap: wrap;
+      }
+      .quick-links-row .btn {
+          margin: 0;
+          flex: 1; /* Distribute space evenly */
+          min-width: 150px;
+      }
   </style>
 </head>
 <body>
@@ -54,38 +71,42 @@
                     <input type="text" id="studentClass">
                 </div>
 
-                <div style="display:flex; gap:10px; margin-top:15px;">
-                    <button type="submit" class="btn green" style="width:100%;">Запази</button>
-                    <button type="button" class="btn red" onclick="resetForm()" style="width:100%;">Изчисти</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn green" style="width:100%; margin:0;">Запази</button>
+                    <button type="button" class="btn red" onclick="resetForm()" style="width:100%; margin:0;">Изчисти</button>
                 </div>
             </form>
-            
-            <hr style="margin: 30px 0; opacity: 0.3;">
-            
-            <h3>🛠️ Бързи връзки</h3>
-            <div class="btn-group-vertical">
-                <a href="index.html" class="btn back-btn" style="margin:0;">🏠 Начало</a>
-                <a href="create.html" class="btn btn-primary" style="margin:0;">✏️ Създай Тест</a>
-                <a href="dashboard.html" class="btn dashboard" style="margin:0;">📝 Оценяване</a>
-            </div>
         </div>
 
-        <div class="card">
-            <h3>👥 Потребители на системата</h3>
-            <div style="overflow-x:auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Потребител</th>
-                            <th>Име</th>
-                            <th>Роля</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userTable"></tbody>
-                </table>
+        <div style="display: flex; flex-direction: column; gap: 25px;">
+            
+            <div class="card" style="margin-bottom: 0;">
+                <h3>👥 Потребители на системата</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Потребител</th>
+                                <th>Име</th>
+                                <th>Роля</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTable"></tbody>
+                    </table>
+                </div>
             </div>
+
+            <div class="card" style="margin-bottom: 0;">
+                <h3>🛠️ Бързи връзки</h3>
+                <div class="quick-links-row">
+                    <a href="index.html" class="btn back-btn" style="margin:0;">🏠 Начало</a>
+                    <a href="create.html" class="btn btn-primary" style="margin:0;">✏️ Създай Тест</a>
+                    <a href="dashboard.html" class="btn dashboard" style="margin:0;">📝 Оценяване</a>
+                </div>
+            </div>
+
         </div>
     </div>
   </div>
@@ -108,8 +129,10 @@
                             </span>
                         </td>
                         <td>
-                            <button class="btn dashboard" style="padding:5px 10px; font-size:12px; margin:0;" onclick='editUser(${JSON.stringify(u)})'>✏️</button>
-                            <button class="btn red" style="padding:5px 10px; font-size:12px; margin:0;" onclick="deleteUser(${u.id})">🗑️</button>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn dashboard" style="padding:5px 10px; font-size:12px; margin:0;" onclick='editUser(${JSON.stringify(u)})'>✏️</button>
+                                <button class="btn red" style="padding:5px 10px; font-size:12px; margin:0;" onclick="deleteUser(${u.id})">🗑️</button>
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -133,7 +156,7 @@
             // Edit
             res = await fetch('/api/users/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
         } else {
-            // Create (via existing register logic + fake code)
+            // Create (via register logic)
             body.secretCode = body.role === 'admin' ? 'ADMIN123' : 'TEACHER123'; 
             res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
         }
