@@ -5,24 +5,69 @@
   <title>Преглед на отговор</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    body { background: linear-gradient(135deg,#667eea,#764ba2); }
-    body.dark { background: #0d1117; }
+    .review-panel {
+        background: #fdfdfd;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 30px;
+        margin-top: 40px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .review-header {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    textarea.comment-box {
+        width: 100%; min-height: 120px; padding: 15px; border: 1px solid #ccc;
+        border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; margin-bottom: 20px; box-sizing: border-box;
+    }
+    .final-grade-row { display: flex; align-items: center; justify-content: flex-end; gap: 15px; }
     
-    .open-answer p { margin: 5px 0; }
-    /* Adjust textarea for read-only view */
-    textarea[readonly] { background: #fdfdfd; color: #555; }
-    body.dark textarea[readonly] { background: #1f2428; color: #a0a0a0; }
+    .grade-select {
+        font-weight: bold; transition: all 0.3s; border: 2px solid transparent; outline:none;
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1 id="title">Зареждане...</h1>
+    <h1 id="title" style="margin-bottom:20px;">Зареждане...</h1>
+    
     <div class="info-box" id="info"></div>
+    
     <div id="answers"></div>
-    <div style="text-align:center;">
+    
+    <div class="review-panel">
+        <div class="review-header">📝 Оценка и Коментар от учителя</div>
+        <label style="font-weight:bold; display:block; margin-bottom:8px;">Коментар:</label>
+        <textarea id="teacherComment" class="comment-box" placeholder="Напишете коментар или препоръка към ученика..."></textarea>
+        
+        <div class="final-grade-row">
+            <label style="font-weight:bold; font-size:1.1rem;">Крайна Оценка:</label>
+            <select id="finalGrade" class="grade-select" style="font-size:1.1rem; padding:8px 15px;" onchange="updateGradeColor(this)">
+                <option value="—">—</option>
+                <option value="2">2.00 (Слаб)</option>
+                <option value="3">3.00 (Среден)</option>
+                <option value="4">4.00 (Добър)</option>
+                <option value="5">5.00 (Мн. Добър)</option>
+                <option value="6">6.00 (Отличен)</option>
+            </select>
+            <button class="btn btn-primary" onclick="saveFinalReview()">💾 ЗАПАЗИ ОЦЕНКАТА</button>
+        </div>
+    </div>
+
+    <div style="text-align:center; margin-top:40px;">
       <a href="dashboard.html" class="back-btn btn">Обратно към дашборда</a>
     </div>
+  </div>
+
+  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+      <span class="lightbox-close">&times;</span>
+      <img id="lightbox-img" src="">
   </div>
 
   <script>
@@ -33,40 +78,59 @@
       .then(r => r.json())
       .then(data => {
         document.getElementById('title').textContent = `${data.studentName} – ${data.testTitle}`;
+        
+        // Auto Grade Color Logic
+        const ag = parseFloat(data.autoGrade || 0);
+        let agColor = '#333';
+        if(ag >= 5.50) agColor = '#06d6a0'; 
+        else if(ag >= 4.50) agColor = '#3498db'; 
+        else if(ag >= 3.50) agColor = '#f1c40f'; 
+        else if(ag >= 3.00) agColor = '#fd7e14'; 
+        else agColor = '#ef476f'; 
+
         document.getElementById('info').innerHTML = `
           <strong>Клас:</strong> ${data.studentClass || '—'}<br>
           <strong>Предаден на:</strong> ${new Date(data.submittedAt).toLocaleString('bg-BG')}<br>
-          <strong>Автоматична оценка:</strong> ${data.autoGrade || '—'}
+          <strong>Автоматична оценка:</strong> <span style="color:${agColor}; font-weight:bold; font-size:1.2em; text-shadow: 0 0 10px ${agColor}40;">${data.autoGrade || '—'}</span>
         `;
+
+        if(data.teacherComment) document.getElementById('teacherComment').value = data.teacherComment;
+        
+        const currentGrade = (data.manualGrade && data.manualGrade !== '—') ? Math.round(data.manualGrade) : Math.round(data.autoGrade);
+        const sel = document.getElementById('finalGrade');
+        if(currentGrade >= 2 && currentGrade <= 6) sel.value = currentGrade;
+        updateGradeColor(sel);
 
         let savedPoints = {};
         try { savedPoints = JSON.parse(data.manualPoints || '{}'); } catch(e) {}
 
         const html = data.answers.map((a, i) => {
           const q = data.questions[i] || {};
-          const maxPoints = q.points || 10;
+          const maxPoints = q.points || 1;
+          
+          // GENERATE IMAGE HTML
+          let imgHTML = '';
+          if(q.image) {
+              imgHTML = `<div class="q-image-container">
+                            <img src="${q.image}" class="q-image" onclick="openLightbox(this.src)" style="max-height:150px;">
+                         </div>`;
+          }
 
           if (a.type === 'open') {
-            const current = savedPoints[i] !== undefined ? savedPoints[i] : maxPoints;
+            const current = savedPoints[i] !== undefined ? savedPoints[i] : 0;
             return `
-              <div class="qblock">
-                <h3>Въпрос ${i+1}: ${a.question} <small style="opacity:0.6">(до ${maxPoints} т.)</small></h3>
-                <div class="open-answer">
-                  <p><strong>Отговор на ученика:</strong></p>
-                  <textarea readonly>${a.studentAnswer || ''}</textarea>
-                  <div style="margin-top:15px; font-weight:bold; display:flex; align-items:center; justify-content:flex-end;">
-                    <span style="margin-right:10px;">Дай точки (1–${maxPoints}):</span>
-                    <select class="points-select" style="width:auto; margin:0 10px 0 0;" data-index="${i}">
-                      ${Array.from({length: maxPoints}, (_, p) => p + 1)
-                        .map(p => `<option value="${p}" ${p===current?'selected':''}>${p}</option>`).join('')}
-                    </select>
-                    <button class="btn green" style="margin:0;" onclick="saveOpenPoints(${submissionId},${i},this.previousElementSibling.value)">
-                      Запази
-                    </button>
-                  </div>
+              <div class="qblock answer-block" style="border-left: 5px solid #7209b7;">
+                <h3>${i+1}. ${a.question} <small style="opacity:0.6; font-size:0.7em;">(макс ${maxPoints} т.)</small></h3>
+                ${imgHTML} <p><strong>Отговор на ученика:</strong></p>
+                <div class="student-answer-box">${a.studentAnswer || '(няма отговор)'}</div>
+                <div style="margin-top:15px; padding-top:10px; border-top:1px solid #eee; display:flex; align-items:center; justify-content:flex-end;">
+                  <span style="margin-right:10px; font-size:0.9em;">Точки:</span>
+                  <select class="points-select" style="width:auto; margin:0 10px 0 0;" data-index="${i}">
+                    ${Array.from({length: maxPoints + 1}, (_, p) => p).map(p => `<option value="${p}" ${p==current?'selected':''}>${p}</option>`).join('')}
+                  </select>
+                  <button class="btn green" style="margin:0; padding:6px 12px; font-size:12px;" onclick="saveOpenPoints(${submissionId},${i},this.previousElementSibling.value)">ОК</button>
                 </div>
-              </div>
-            `;
+              </div>`;
           }
 
           const correct = Array.isArray(a.correctAnswer) ? a.correctAnswer.map(n => q.options?.[n] || n).join(', ') : q.options?.[a.correctAnswer] || '';
@@ -74,46 +138,50 @@
           const color = a.isCorrect ? '#06d6a0' : '#ef476f';
           
           return `
-            <div class="qblock">
-              <h3>Въпрос ${i+1}: ${a.question} <small style="opacity:0.6">(${maxPoints} т.)</small></h3>
-              <p><strong>Верен:</strong> <span style="color:#00c851; font-weight:bold;">${correct}</span></p>
-              <p><strong>Ученик:</strong> <span style="color:${color}; font-weight:bold;">${student}</span></p>
-            </div>
-          `;
+            <div class="qblock" style="border-left: 5px solid ${color};">
+                <h3>${i+1}. ${a.question}</h3>
+                ${imgHTML} <p style="margin:5px 0;"><strong>Верен:</strong> <span style="color:#2ecc71;">${correct}</span></p>
+                <p style="margin:5px 0;"><strong>Ученик:</strong> <span style="color:${color}; font-weight:bold;">${student}</span></p>
+            </div>`;
         }).join('');
+        
         document.getElementById('answers').innerHTML = html;
       });
 
-    async function saveOpenPoints(submissionId, questionIndex, points) {
-      const res = await fetch('/api/submission-points/' + submissionId, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionIndex: parseInt(questionIndex), points: parseInt(points) })
-      });
-      if ((await res.json()).success) {
-        alert('Точките са запазени успешно!');
-      } else {
-        alert('Грешка при запазване');
-      }
+    // Lightbox Logic
+    function openLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').style.display = 'flex';
+    }
+    function closeLightbox() {
+        document.getElementById('lightbox').style.display = 'none';
     }
 
-    // Global Dark Mode Toggle
+    function updateGradeColor(select) {
+        const val = parseFloat(select.value);
+        let color = '#333'; let bg = '#fff'; let shadow = 'none';
+        
+        if (val >= 5.50) { color = '#06d6a0'; bg = 'rgba(6, 214, 160, 0.15)'; shadow='0 0 10px rgba(6,214,160,0.3)'; }
+        else if (val >= 4.50) { color = '#3498db'; bg = 'rgba(52, 152, 219, 0.15)'; shadow='0 0 10px rgba(52,152,219,0.3)'; }
+        else if (val >= 3.50) { color = '#f1c40f'; bg = 'rgba(241, 196, 15, 0.15)'; shadow='0 0 10px rgba(241,196,15,0.3)'; }
+        else if (val >= 3.00) { color = '#fd7e14'; bg = 'rgba(253, 126, 20, 0.15)'; shadow='0 0 10px rgba(253,126,20,0.3)'; }
+        else if (val >= 2.00) { color = '#ef476f'; bg = 'rgba(239, 71, 111, 0.15)'; shadow='0 0 10px rgba(239,71,111,0.3)'; }
+        
+        select.style.color = color;
+        select.style.borderColor = color;
+        select.style.backgroundColor = bg;
+        select.style.boxShadow = shadow;
+    }
+
+    async function saveOpenPoints(sid, idx, pts) {
+      await fetch('/api/submission-points/'+sid, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIndex:parseInt(idx),points:parseInt(pts)})});
+      const btn=event.target; const txt=btn.textContent; btn.textContent='✓'; setTimeout(()=>btn.textContent=txt,1000);
+    }
+    async function saveFinalReview() {
+        await fetch('/api/save-review/'+submissionId, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({manualGrade:document.getElementById('finalGrade').value,teacherComment:document.getElementById('teacherComment').value})});
+        alert('Запазено!'); window.location.href='dashboard.html';
+    }
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
-    document.addEventListener('DOMContentLoaded', () => {
-      let btn = document.getElementById('global-dark-toggle');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'global-dark-toggle';
-        btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
-        btn.style.cssText = 'position:fixed; top:15px; right:15px; z-index:99999; background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px; border-radius:50px; font-size:18px; cursor:pointer; backdrop-filter:blur(5px); margin:0;';
-        document.body.appendChild(btn);
-        btn.onclick = () => {
-          document.body.classList.toggle('dark');
-          localStorage.setItem('dark', document.body.classList.contains('dark'));
-          btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
-        };
-      }
-    });
   </script>
 </body>
 </html>

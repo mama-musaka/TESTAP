@@ -3,189 +3,254 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
-const db = new sqlite3.Database('tests.db');
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-// Таблици
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS tests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    questions TEXT,
-    question_count INTEGER
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS submissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    testId INTEGER,
-    studentName TEXT,
-    studentClass TEXT,
-    answers TEXT,
-    autoGrade TEXT,
-    manualGrade TEXT DEFAULT '—',
-    manualPoints TEXT DEFAULT '{}',
-    submittedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
+const db = new sqlite3.Database('tests.db', (err) => {
+    if (err) console.error("DB Error:", err.message);
+    else console.log("Connected to database.");
 });
 
-// API
-app.get('/api/tests', (req, res) => {
-  db.all('SELECT id, title, question_count FROM tests ORDER BY id DESC', [], (err, rows) => {
-    res.json(rows || []);
+// Увеличаване на лимита за данни (за снимките)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.static('public'));
+
+// === НАСТРОЙКА НА БАЗАТА ДАННИ ===
+db.serialize(() => {
+  // 1. Таблица Потребители
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT,
+    role TEXT,
+    full_name TEXT,
+    student_class TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // 2. Таблица Тестове (Добавена колона question_count)
+  db.run(`CREATE TABLE IF NOT EXISTS tests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    creator_id INTEGER,
+    title TEXT,
+    questions TEXT,
+    question_count INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // 3. Таблица Отговори
+  db.run(`CREATE TABLE IF NOT EXISTS submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_id INTEGER,
+    student_id INTEGER,
+    student_name TEXT,
+    student_class TEXT,
+    answers TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    auto_grade REAL,
+    manual_grade REAL,
+    manual_points TEXT,
+    teacher_comment TEXT
+  )`);
+
+  // 4. МИГРАЦИЯ: Добавяне на липсващи колони (Safe Migration)
+  const cols = [
+      {table: 'submissions', col: 'student_id', type: 'INTEGER'},
+      {table: 'tests', col: 'creator_id', type: 'INTEGER'},
+      {table: 'tests', col: 'question_count', type: 'INTEGER DEFAULT 0'}, // FIX за грешката
+      {table: 'submissions', col: 'manual_points', type: 'TEXT'},
+      {table: 'submissions', col: 'manual_grade', type: 'REAL'},
+      {table: 'submissions', col: 'teacher_comment', type: 'TEXT'}
+  ];
+  
+  cols.forEach(c => {
+      // Опит за добавяне на колона. Ако съществува, SQLite ще върне грешка, която игнорираме.
+      db.run(`ALTER TABLE ${c.table} ADD COLUMN ${c.col} ${c.type}`, (err) => {});
   });
 });
 
-app.post('/api/tests', (req, res) => {
-  const { title, questions } = req.body;
-  db.run('INSERT INTO tests (title, questions, question_count) VALUES (?, ?, ?)',
-    [title, JSON.stringify(questions), questions.length],
-    function() { res.json({ success: true }); }
-  );
+// === AUTH ROUTES ===
+
+app.post('/api/register', (req, res) => {
+    const { username, password, role, fullName, studentClass, secretCode } = req.body;
+    if (role === 'teacher' && secretCode !== 'TEACHER123') return res.status(403).json({ error: 'Грешен код!' });
+    if (role === 'admin' && secretCode !== 'ADMIN123') return res.status(403).json({ error: 'Грешен код!' });
+
+    db.run(`INSERT INTO users (username, password, role, full_name, student_class) VALUES (?, ?, ?, ?, ?)`, 
+        [username, password, role, fullName, studentClass], 
+        function(err) {
+            if (err) return res.status(400).json({ error: 'Потребителското име е заето.' });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get("SELECT id, username, role, full_name, student_class FROM users WHERE username = ? AND password = ?", 
+        [username, password], (err, row) => {
+            if (!row) return res.status(401).json({ error: 'Грешни данни' });
+            res.json({ success: true, user: row });
+        }
+    );
+});
+
+// === ADMIN ROUTES ===
+
+app.get('/api/users', (req, res) => {
+    db.all("SELECT id, username, role, full_name, student_class FROM users ORDER BY id DESC", [], (err, rows) => res.json(rows));
+});
+
+app.put('/api/users/:id', (req, res) => {
+    const { username, password, role, fullName, studentClass } = req.body;
+    let sql = "UPDATE users SET username=?, role=?, full_name=?, student_class=? WHERE id=?";
+    let params = [username, role, fullName, studentClass, req.params.id];
+    if (password && password.trim() !== "") {
+        sql = "UPDATE users SET username=?, password=?, role=?, full_name=?, student_class=? WHERE id=?";
+        params = [username, password, role, fullName, studentClass, req.params.id];
+    }
+    db.run(sql, params, (err) => {
+        if(err) return res.status(500).json({error: err.message});
+        res.json({success: true});
+    });
+});
+
+app.delete('/api/users/:id', (req, res) => {
+    db.run("DELETE FROM users WHERE id = ?", [req.params.id], (err) => {
+        if(err) return res.status(500).json({error: err.message});
+        res.json({success: true});
+    });
+});
+
+// === TEST ROUTES ===
+
+app.get('/api/tests', (req, res) => {
+  // Използваме question_count колоната, или я изчисляваме динамично ако е стара база
+  db.all("SELECT id, title, creator_id, question_count, questions FROM tests ORDER BY id DESC", [], (err, rows) => {
+      if(err) return res.json([]);
+      
+      // Fallback: Ако question_count е 0 или null, преброяваме ръчно за визуализацията
+      const results = rows.map(r => {
+          let count = r.question_count;
+          if(!count) {
+              try { count = JSON.parse(r.questions).length; } catch(e) { count = 0; }
+          }
+          return { id: r.id, title: r.title, creator_id: r.creator_id, question_count: count };
+      });
+      res.json(results);
+  });
 });
 
 app.get('/api/tests/:id', (req, res) => {
-  db.get('SELECT * FROM tests WHERE id = ?', [req.params.id], (err, row) => {
-    if (row) row.questions = JSON.parse(row.questions);
-    res.json(row || {});
+  db.get("SELECT * FROM tests WHERE id = ?", [req.params.id], (err, row) => {
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    try { row.questions = JSON.parse(row.questions); } catch(e) { row.questions = []; }
+    res.json(row);
   });
 });
 
+// СЪЗДАВАНЕ НА ТЕСТ (FIXED)
+app.post('/api/tests', (req, res) => {
+  const { title, questions, creatorId } = req.body;
+  
+  // FIX: Изчисляваме броя въпроси преди запис
+  const count = questions ? questions.length : 0;
+
+  db.run("INSERT INTO tests (title, questions, creator_id, question_count) VALUES (?, ?, ?, ?)", 
+    [title, JSON.stringify(questions), creatorId, count], 
+    function(err) {
+      if (err) {
+          console.error("SAVE ERROR:", err.message);
+          return res.status(500).json({ error: err.message });
+      }
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.delete('/api/tests/:id', (req, res) => {
+  db.run("DELETE FROM tests WHERE id = ?", [req.params.id], (err) => res.json({ deleted: true }));
+});
+
+// === SUBMISSION ROUTES ===
+
 app.post('/api/grade/:id', (req, res) => {
-  db.get('SELECT questions FROM tests WHERE id = ?', [req.params.id], (err, testRow) => {
-    if (!testRow) return res.status(404).json({error: 'not found'});
+  const { answers, studentId, studentName, studentClass } = req.body;
+  const testId = req.params.id;
+  
+  db.get("SELECT questions FROM tests WHERE id = ?", [testId], (err, row) => {
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    let questions = JSON.parse(row.questions);
+    let total = 0, earned = 0;
 
-    const qs = JSON.parse(testRow.questions);
-    let earned = 0;
-    let total = 0;
-
-    qs.forEach((q, i) => {
-      const pts = q.points || 10;
-      total += pts;
-
-      if (q.type === 'open') {
-        earned += pts;
-      } else {
-        const user = req.body[`q${i}`] || [];
-        const userArr = Array.isArray(user) ? user.map(Number) : [Number(user)].filter(n => !isNaN(n));
-        const correctArr = Array.isArray(q.correct) ? q.correct : [q.correct];
-        if (JSON.stringify(userArr.sort()) === JSON.stringify(correctArr.sort())) {
-          earned += pts;
-        }
+    questions.forEach((q, i) => {
+      total += (q.points || 1);
+      const ans = answers[`q${i}`];
+      if (q.type === 'single' && parseInt(ans) === q.correct) earned += (q.points||1);
+      else if (q.type === 'multiple') {
+          const cSet = new Set((q.correct||[]).map(String));
+          const sSet = new Set((Array.isArray(ans)?ans:[ans]).map(String));
+          if(cSet.size === sSet.size && [...cSet].every(x => sSet.has(x))) earned += (q.points||1);
       }
     });
 
-    const percent = total ? Math.round((earned / total) * 100) : 0;
-    const grade = percent >= 96 ? '6' : percent >= 83 ? '5' : percent >= 66 ? '4' : percent >= 50 ? '3' : '2';
+    let grade = total > 0 ? (2 + (4 * (earned / total))) : 2;
+    if(grade<2) grade=2; if(grade>6) grade=6;
 
-    db.run('INSERT INTO submissions (testId, studentName, studentClass, answers, autoGrade) VALUES (?, ?, ?, ?, ?)',
-      [req.params.id, req.body.studentName || 'Анонимен', req.body.studentClass || '', JSON.stringify(req.body), grade],
-      function() {
-        res.json({ success: true, grade });
-      }
+    db.run(`INSERT INTO submissions (test_id, student_id, student_name, student_class, answers, auto_grade, manual_points) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [testId, studentId, studentName, studentClass, JSON.stringify(answers), grade.toFixed(2), '{}'],
+      function(err) { res.json({ success: true, grade: grade.toFixed(2) }); }
     );
   });
 });
 
 app.get('/api/submissions', (req, res) => {
-  db.all(`
-    SELECT 
-      s.id AS submissionId,
-      s.studentName,
-      s.studentClass,
-      s.autoGrade,
-      s.manualGrade,
-      s.submittedAt,
-      t.title AS testTitle
-    FROM submissions s
-    LEFT JOIN tests t ON s.testId = t.id
-    ORDER BY s.submittedAt DESC
-  `, (err, rows) => {
-    res.json(rows || []);
-  });
+  const sql = `SELECT s.id as submissionId, s.student_name as studentName, s.student_class as studentClass, s.submitted_at as submittedAt, s.auto_grade as autoGrade, s.manual_grade as manualGrade, t.title as testTitle FROM submissions s LEFT JOIN tests t ON s.test_id = t.id ORDER BY s.submitted_at DESC`;
+  db.all(sql, [], (err, rows) => res.json(rows||[]));
 });
 
 app.get('/api/submission/:id', (req, res) => {
-  db.get('SELECT s.*, t.questions, t.title AS testTitle FROM submissions s LEFT JOIN tests t ON s.testId = t.id WHERE s.id = ?', [req.params.id], (err, row) => {
-    if (!row) return res.status(404).send();
-
-    const qs = JSON.parse(row.questions);
-    const answers = JSON.parse(row.answers || '{}');
-    const manualPoints = JSON.parse(row.manualPoints || '{}');
-
-    const result = qs.map((q, i) => {
-      const user = answers[`q${i}`] || [];
-      const userArr = Array.isArray(user) ? user : [user];
-
-      if (q.type === 'open') {
-        return { type: 'open', question: q.text, studentAnswer: userArr[0] || '', points: q.points || 10 };
-      }
-
-      const correctArr = Array.isArray(q.correct) ? q.correct : [q.correct];
-      const isCorrect = userArr.map(Number).sort().join() === correctArr.sort().join();
-      return {
-        type: q.type,
-        question: q.text,
-        options: q.options,
-        correctAnswer: q.correct,
-        studentAnswer: userArr,
-        isCorrect,
-        points: q.points || 10
-      };
+  db.get(`SELECT s.*, t.title, t.questions FROM submissions s LEFT JOIN tests t ON s.test_id = t.id WHERE s.id = ?`, [req.params.id], (err, row) => {
+    if(!row) return res.status(404).json({error:'Not found'});
+    const q = row.questions ? JSON.parse(row.questions) : [];
+    const a = JSON.parse(row.answers||'{}');
+    const mp = JSON.parse(row.manual_points||'{}');
+    
+    const result = q.map((qu, i) => {
+        const sans = a[`q${i}`];
+        let correct = false;
+        if(qu.type === 'single') correct = parseInt(sans) === qu.correct;
+        else if(qu.type === 'multiple') {
+            const c = new Set((qu.correct||[]).map(String));
+            const s = new Set((Array.isArray(sans)?sans:[sans]).map(String));
+            correct = (c.size===s.size && [...c].every(x=>s.has(x)));
+        }
+        return { question: qu.text, type: qu.type, points: qu.points||1, options: qu.options, correctAnswer: qu.correct, studentAnswer: sans, isCorrect: correct, manualPoints: mp[i], image: qu.image };
     });
 
     res.json({
-      studentName: row.studentName,
-      studentClass: row.studentClass,
-      submittedAt: row.submittedAt,
-      testTitle: row.testTitle,
-      answers: result,
-      autoGrade: row.autoGrade,
-      manualPoints: row.manualPoints,
-      questions: qs
+        studentName: row.student_name, studentClass: row.student_class, testTitle: row.title||'Deleted',
+        submittedAt: row.submitted_at, autoGrade: row.auto_grade, manualGrade: row.manual_grade,
+        teacherComment: row.teacher_comment, questions: q, answers: result, manualPoints: mp
     });
-  });
-});
-
-app.post('/api/submission-points/:id', (req, res) => {
-  const { questionIndex, points } = req.body;
-  db.get('SELECT manualPoints FROM submissions WHERE id = ?', [req.params.id], (err, r) => {
-    let obj = {};
-    try { obj = JSON.parse(r?.manualPoints || '{}'); } catch {}
-    obj[questionIndex] = Number(points);
-    db.run('UPDATE submissions SET manualPoints = ? WHERE id = ?', [JSON.stringify(obj), req.params.id], () => {
-      res.json({ success: true });
-    });
-  });
-});
-
-app.post('/api/grade-manual/:id', (req, res) => {
-  db.run('UPDATE submissions SET manualGrade = ? WHERE id = ?', [req.body.manualGrade, req.params.id], () => {
-    res.json({ success: true });
   });
 });
 
 app.delete('/api/submissions/:id', (req, res) => {
-  db.run('DELETE FROM submissions WHERE id = ?', [req.params.id], () => {
-    res.json({ success: true });
+  db.run("DELETE FROM submissions WHERE id = ?", [req.params.id], (err) => res.json({ deleted: true }));
+});
+
+app.post('/api/submission-points/:id', (req, res) => {
+  const { questionIndex, points } = req.body;
+  db.get("SELECT manual_points FROM submissions WHERE id = ?", [req.params.id], (err, row) => {
+    let cur = JSON.parse(row.manual_points || '{}');
+    cur[questionIndex] = parseFloat(points);
+    db.run("UPDATE submissions SET manual_points = ? WHERE id = ?", [JSON.stringify(cur), req.params.id], (err) => res.json({success:true}));
   });
 });
 
-// РАБОТЕЩ FALLBACK ЗА NODE.JS 24
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.post('/api/save-review/:id', (req, res) => {
+  const { manualGrade, teacherComment } = req.body;
+  db.run("UPDATE submissions SET manual_grade = ?, teacher_comment = ? WHERE id = ?", [manualGrade, teacherComment, req.params.id], (err) => res.json({ success: true }));
 });
 
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.includes('.')) {
-    return next();
-  }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(3000, () => {
-  console.log('Сървърът работи на http://localhost:3000');
-  console.log('Дашборд: http://localhost:3000/dashboard.html');
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

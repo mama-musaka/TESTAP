@@ -2,119 +2,158 @@
 <html lang="bg">
 <head>
   <meta charset="utf-8">
-  <title>Тестова система</title>
+  <title>Табло - Тестова Система</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    /* Gradient Background override for index page */
-    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    body.dark { background: #0d1117; } /* Override gradient in dark mode */
-    
-    .container { max-width:1000px; margin:40px auto; text-align:center; padding: 50px; }
-    h1 { font-size:48px; margin-bottom:20px; color: #2c3e50; }
-    body.dark h1 { color: #fff; }
-
-    .actions { margin-top:20px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:flex-start; }
-    .copied { color:#06d6a0; font-weight:bold; opacity:0; transition:opacity 0.5s; font-size:16px; margin-left:10px; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <script>
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) window.location.href = 'login.html';
+  </script>
+
+  <nav class="top-nav">
+    <div class="brand">
+        <div class="brand-icon">📊</div>
+        <span>Тестова система</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <span id="user-display" style="font-weight:bold;"></span>
+        <button onclick="logout()" class="btn red" style="padding:5px 15px; font-size:12px;">Изход</button>
+    </div>
+  </nav>
+
   <div class="container">
-    <h1>Тестова система</h1>
+    <div class="dashboard-grid">
+        <div class="card graph-card" id="teacher-stats">
+            <h2 style="text-align: center; color: var(--primary);">🏆 Статистика на класовете</h2>
+            <div class="chart-container"><canvas id="classChart"></canvas></div>
+        </div>
 
-    <a href="create.html" class="btn create">Създай нов тест</a>
-    <a href="dashboard.html" class="btn dashboard">Учителски дашборд</a>
+        <div class="menu-column">
+            
+            <div class="card action-card" id="admin-menu" style="display:none; border:2px solid #e74c3c;">
+                <h3 style="color:#e74c3c;">🛡️ Администратор</h3>
+                <div class="btn-group-vertical">
+                    <a href="admin.html" class="btn" style="width:100%; background:#c0392b;">⚙️ Управление на профили</a>
+                </div>
+            </div>
 
-    <div style="margin-top:80px;">
-      <h2>Създадени тестове</h2>
-      <div id="list"></div>
-      <p id="empty" style="font-size:22px; margin-top:50px; display:none; opacity: 0.6;">
-        Все още няма създадени тестове
-      </p>
+            <div class="card action-card" id="teacher-menu" style="display:none;">
+                <h3>👨‍🏫 Учителски панел</h3>
+                <div class="btn-group-vertical">
+                    <a href="create.html" class="btn btn-primary" style="width:100%;">✏️ Създай тест</a>
+                    <a href="dashboard.html" class="btn dashboard" style="width:100%;">📝 Проверка & Оценки</a>
+                    <button id="theme-btn-teacher" class="btn" style="width:100%; background:#34495e;">🌙 Смени тема</button>
+                </div>
+            </div>
+
+            <div class="card action-card" id="student-menu" style="display:none;">
+                <h3>👋 Здравей, <span id="s-name"></span></h3>
+                <p>Клас: <strong id="s-class"></strong></p>
+                <div class="btn-group-vertical">
+                    <button onclick="document.getElementById('test-list').scrollIntoView({behavior:'smooth'})" class="btn green" style="width:100%;">▶️ Намери Тест</button>
+                    <button id="theme-btn-student" class="btn" style="width:100%; background:#34495e;">🌙 Смени тема</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="test-list" style="margin-top: 50px;">
+        <h2 style="border-bottom: 2px solid var(--primary); padding-bottom: 10px;">📋 Активни тестове</h2>
+        <div id="list">Зареждане...</div>
     </div>
   </div>
 
   <script>
-    function shareTest(id) {
-      const link = window.location.origin + window.location.pathname.replace(/index\.html.*$/, '') + 'take.html?id=' + id;
-      navigator.clipboard.writeText(link).then(() => {
-        // Find the copied message associated with the clicked button
-        const btn = event.target;
-        const msg = btn.nextElementSibling; 
-        if(msg && msg.classList.contains('copied')) {
-            msg.style.opacity = 1;
-            setTimeout(() => msg.style.opacity = 0, 2000);
+    document.getElementById('user-display').textContent = user.full_name || user.username;
+    
+    if (user.role === 'student') {
+        document.getElementById('student-menu').style.display = 'block';
+        document.getElementById('s-name').textContent = user.full_name;
+        document.getElementById('s-class').textContent = user.student_class;
+        document.getElementById('teacher-stats').style.display = 'none';
+        document.querySelector('.dashboard-grid').style.gridTemplateColumns = '1fr'; 
+    } else {
+        // Show Teacher Menu for both Teachers and Admins
+        document.getElementById('teacher-menu').style.display = 'block';
+        
+        // Show Admin Menu ONLY for Admins
+        if(user.role === 'admin') {
+            document.getElementById('admin-menu').style.display = 'block';
         }
-      }).catch(() => {
-        prompt('Копирай този линк:', link);
-      });
+        
+        fetch('/api/submissions').then(r=>r.json()).then(setupChart);
     }
 
-    fetch('/api/tests')
-      .then(r => r.json())
-      .then(tests => {
-        if (!tests || tests.length === 0) {
-          document.getElementById('empty').style.display = 'block';
-          return;
-        }
+    function toggleTheme() {
+        document.body.classList.toggle('dark');
+        localStorage.setItem('dark', document.body.classList.contains('dark'));
+    }
+    if(document.getElementById('theme-btn-student')) document.getElementById('theme-btn-student').onclick = toggleTheme;
+    if(document.getElementById('theme-btn-teacher')) document.getElementById('theme-btn-teacher').onclick = toggleTheme;
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
 
-        const html = tests.map(t => `
+    function logout() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+
+    fetch('/api/tests').then(r => r.json()).then(tests => {
+        const list = document.getElementById('list');
+        if (!tests.length) { list.innerHTML = '<p style="text-align:center;">Няма тестове.</p>'; return; }
+        list.innerHTML = tests.map(t => `
           <div class="test-card">
-            <h3>${t.title}</h3>
-            <p style="opacity: 0.7; font-size:18px; margin:10px 0;">
-              Въпроси: <strong>${t.question_count}</strong>
-            </p>
-
+            <div><h3 style="margin:0; color:var(--primary);">${t.title}</h3><span class="badge">Въпроси: ${t.question_count}</span></div>
             <div class="actions">
-              <a href="take.html?id=${t.id}" class="btn green" style="text-decoration:none; margin:0;">
-                Решаване
-              </a>
-
-              <button onclick="shareTest(${t.id})" class="share-btn" style="background:#25d366; margin:0;">
-                Сподели
-              </button>
-              <span class="copied">Копирано!</span>
-
-              <button onclick="if(confirm('Изтриване на „${t.title}“?')) fetch('/api/tests/${t.id}',{method:'DELETE'}).then(()=>location.reload())"
-                      class="btn red" style="margin:0;">
-                Изтрий
-              </button>
+                ${user.role === 'student' 
+                    ? `<a href="take.html?id=${t.id}" class="btn green">Решаване</a>` 
+                    : `<button onclick="deleteTest(${t.id})" class="btn red">Изтрий</button>`}
             </div>
           </div>
         `).join('');
-
-        document.getElementById('list').innerHTML = html;
-      })
-      .catch(() => {
-        document.getElementById('list').innerHTML = '<p style="color:red;">Грешка при зареждане!</p>';
-      });
-
-    // Global Dark Mode Toggle Script
-    if (localStorage.getItem('dark') === 'true') {
-      document.body.classList.add('dark');
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      let btn = document.getElementById('global-dark-toggle');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'global-dark-toggle';
-        btn.textContent = document.body.classList.contains('dark') ? '☀ Light' : '☾ Dark';
-        btn.style.cssText = `
-          position:fixed; top:15px; right:15px; z-index:99999;
-          background:rgba(0,0,0,0.6); color:white; border:none; padding:8px 15px;
-          border-radius:50px; font-size:14px; font-weight:bold; cursor:pointer;
-          backdrop-filter:blur(5px); margin:0;
-        `;
-        document.body.appendChild(btn);
-
-        btn.onclick = () => {
-          document.body.classList.toggle('dark');
-          const isDark = document.body.classList.contains('dark');
-          localStorage.setItem('dark', isDark);
-          btn.textContent = isDark ? '☀ Light' : '☾ Dark';
-        };
-      }
     });
+
+    function deleteTest(id) { if(confirm('Изтриване?')) fetch(`/api/tests/${id}`,{method:'DELETE'}).then(()=>location.reload()); }
+
+    function setupChart(data) {
+        if(!data.length) return;
+        const classStats = {};
+        data.forEach(s => {
+            const c = (s.studentClass || 'N/A').toUpperCase();
+            const g = parseFloat(s.manualGrade || s.autoGrade);
+            if(!classStats[c]) classStats[c] = {t:0, c:0};
+            classStats[c].t+=g; classStats[c].c++;
+        });
+
+        const labels = Object.keys(classStats);
+        const avgData = labels.map(k => (classStats[k].t/classStats[k].c).toFixed(2));
+        
+        // New Color Scheme (2=Red, 3=Orange, 4=Yellow, 5=Blue, 6=Green)
+        const bgColors = avgData.map(val => {
+            const v = parseFloat(val);
+            if(v >= 5.50) return '#06d6a0'; // Green
+            if(v >= 4.50) return '#3498db'; // Blue
+            if(v >= 3.50) return '#f1c40f'; // Yellow
+            if(v >= 3.00) return '#fd7e14'; // Orange
+            return '#ef476f'; // Red
+        });
+
+        const ctx = document.getElementById('classChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Успех',
+                    data: avgData,
+                    backgroundColor: bgColors,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true, max: 6 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
   </script>
 </body>
 </html>
