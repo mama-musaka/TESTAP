@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Админ Панел</title>
+  <link rel="stylesheet" href="style.css">
+  <script>
+      const user = JSON.parse(localStorage.getItem('user'));
+      if(!user || user.role !== 'admin') {
+          alert('Само за администратори!');
+          window.location.href = 'index.html';
+      }
+  </script>
+  <style>
+      /* Two Column Admin Layout */
+      .admin-layout { 
+          display: grid; 
+          grid-template-columns: 1fr 2fr; 
+          gap: 25px; 
+          align-items: start; /* Prevents stretching */
+      }
+      @media (max-width: 900px) { .admin-layout { grid-template-columns: 1fr; } }
+      
+      .edit-form { background: #fdfdfd; padding: 20px; border-radius: 12px; border: 2px solid #e0e0e0; }
+      body.dark .edit-form { background: #21262d; border-color: #30363d; }
+
+      /* Quick Links Horizontal Layout */
+      .quick-links-row {
+          display: flex;
+          gap: 15px;
+          flex-wrap: wrap;
+      }
+      .quick-links-row .btn {
+          margin: 0;
+          flex: 1; /* Distribute space evenly */
+          min-width: 150px;
+      }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Админ Панел</h1>
+    
+    <div class="admin-layout">
+        
+        <div class="card">
+            <h3 id="form-title">➕ Добави / Редактирай</h3>
+            <form id="userForm" class="edit-form">
+                <input type="hidden" id="userId">
+                
+                <label>Потребителско име</label>
+                <input type="text" id="username" required>
+                
+                <label>Парола <small>(остави празно ако не променяш)</small></label>
+                <input type="text" id="password" placeholder="Нова парола">
+                
+                <label>Роля</label>
+                <select id="role" onchange="toggleFields()">
+                    <option value="student">Ученик</option>
+                    <option value="teacher">Учител</option>
+                    <option value="admin">Администратор</option>
+                </select>
+                
+                <div id="nameField">
+                    <label>Име и Фамилия</label>
+                    <input type="text" id="fullName">
+                </div>
+                
+                <div id="classField">
+                    <label>Клас</label>
+                    <input type="text" id="studentClass">
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="btn green" style="width:100%; margin:0;">Запази</button>
+                    <button type="button" class="btn red" onclick="resetForm()" style="width:100%; margin:0;">Изчисти</button>
+                </div>
+            </form>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 25px;">
+            
+            <div class="card" style="margin-bottom: 0;">
+                <h3>👥 Потребители на системата</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Потребител</th>
+                                <th>Име</th>
+                                <th>Роля</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 0;">
+                <h3>🛠️ Бързи връзки</h3>
+                <div class="quick-links-row">
+                    <a href="index.html" class="btn back-btn" style="margin:0;">🏠 Начало</a>
+                    <a href="create.html" class="btn btn-primary" style="margin:0;">✏️ Създай Тест</a>
+                    <a href="dashboard.html" class="btn dashboard" style="margin:0;">📝 Оценяване</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. Load Users
+    function loadUsers() {
+        fetch('/api/users')
+            .then(r => r.json())
+            .then(users => {
+                const tbody = document.getElementById('userTable');
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td><strong>${u.username}</strong></td>
+                        <td>${u.full_name || '—'} ${u.student_class ? '('+u.student_class+')' : ''}</td>
+                        <td>
+                            <span class="badge" style="background:${getRoleColor(u.role)}; color:white;">
+                                ${translateRole(u.role)}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn dashboard" style="padding:5px 10px; font-size:12px; margin:0;" onclick='editUser(${JSON.stringify(u)})'>✏️</button>
+                                <button class="btn red" style="padding:5px 10px; font-size:12px; margin:0;" onclick="deleteUser(${u.id})">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            });
+    }
+
+    // 2. Form Logic (Add or Edit)
+    document.getElementById('userForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('userId').value;
+        const body = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            role: document.getElementById('role').value,
+            fullName: document.getElementById('fullName').value,
+            studentClass: document.getElementById('studentClass').value
+        };
+
+        let res;
+        if(id) {
+            // Edit
+            res = await fetch('/api/users/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        } else {
+            // Create (via register logic)
+            body.secretCode = body.role === 'admin' ? 'ADMIN123' : 'TEACHER123'; 
+            res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        }
+
+        const data = await res.json();
+        if(data.success || data.id) {
+            alert('Успешно запазване!');
+            resetForm();
+            loadUsers();
+        } else {
+            alert('Грешка: ' + (data.error || 'Неизвестна'));
+        }
+    };
+
+    function editUser(u) {
+        document.getElementById('form-title').textContent = '✏️ Редактиране на: ' + u.username;
+        document.getElementById('userId').value = u.id;
+        document.getElementById('username').value = u.username;
+        document.getElementById('password').value = ""; // Don't show old pass
+        document.getElementById('role').value = u.role;
+        document.getElementById('fullName').value = u.full_name || "";
+        document.getElementById('studentClass').value = u.student_class || "";
+        toggleFields();
+        window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function deleteUser(id) {
+        if(confirm('Сигурни ли сте? Това ще изтрие профила и всички резултати.')) {
+            fetch('/api/users/' + id, {method:'DELETE'}).then(() => loadUsers());
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = "";
+        document.getElementById('form-title').textContent = "➕ Добави / Редактирай";
+        toggleFields();
+    }
+
+    function toggleFields() {
+        const role = document.getElementById('role').value;
+        if(role === 'student') {
+            document.getElementById('classField').style.display = 'block';
+        } else {
+            document.getElementById('classField').style.display = 'none';
+        }
+    }
+
+    function getRoleColor(role) {
+        if(role==='admin') return '#e74c3c';
+        if(role==='teacher') return '#8e44ad';
+        return '#2ecc71';
+    }
+    
+    function translateRole(role) {
+        if(role==='admin') return 'Админ';
+        if(role==='teacher') return 'Учител';
+        return 'Ученик';
+    }
+
+    // Init
+    loadUsers();
+    toggleFields();
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
+  </script>
+</body>
+</html>

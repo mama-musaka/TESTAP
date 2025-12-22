@@ -5,7 +5,6 @@
   <title>Учителски дашборд</title>
   <link rel="stylesheet" href="style.css">
   <script>
-      // Auth Check
       const user = JSON.parse(localStorage.getItem('user'));
       if(!user || (user.role !== 'teacher' && user.role !== 'admin')) {
           alert('Нямате права за достъп!');
@@ -31,7 +30,6 @@
         }
 
         let html = '';
-        // Group submissions by Test Title
         const grouped = data.reduce((acc, s) => {
           const title = s.testTitle || 'Без заглавие';
           if (!acc[title]) acc[title] = [];
@@ -43,7 +41,7 @@
           const subs = grouped[title];
           html += `
             <div class="test-card" style="display:block; padding:0; overflow:hidden;">
-              <div style="padding:20px; border-bottom:1px solid #eee; background:rgba(0,0,0,0.02);">
+              <div style="padding:20px; border-bottom:1px solid #eee; background:rgba(127, 140, 141, 0.05);">
                  <h3 style="margin:0;">${title} <span style="font-weight:400; font-size:0.8em; opacity:0.7">(${subs.length} предадени)</span></h3>
               </div>
               <div style="overflow-x:auto;">
@@ -61,19 +59,62 @@
 
           subs.forEach(s => {
             const displayGrade = (s.manualGrade && s.manualGrade !== '—') ? s.manualGrade : s.autoGrade;
-            // Determine badge color based on grade
-            let badgeColor = '#3498db'; // Default blue
-            if(displayGrade >= 5.50) badgeColor = '#06d6a0'; // Green
-            else if(displayGrade < 3.00) badgeColor = '#ef476f'; // Red
+            const g = parseFloat(displayGrade);
             
+            // COLOR LOGIC (Glassy/Transparent Backgrounds for Dark Mode Compatibility)
+            let color = '#333';
+            let bg = 'rgba(255,255,255,0.1)';
+            let shadow = 'none';
+
+            if (g >= 5.50) { 
+                // 6 - Green
+                color = '#06d6a0'; 
+                bg = 'rgba(6, 214, 160, 0.15)'; 
+                shadow = '0 0 10px rgba(6, 214, 160, 0.2)';
+            } else if (g >= 4.50) { 
+                // 5 - Blue
+                color = '#3498db'; 
+                bg = 'rgba(52, 152, 219, 0.15)'; 
+                shadow = '0 0 10px rgba(52, 152, 219, 0.2)';
+            } else if (g >= 3.50) { 
+                // 4 - Yellow
+                color = '#f1c40f'; 
+
+                bg = 'rgba(241, 196, 15, 0.15)'; 
+
+                shadow = '0 0 10px rgba(241, 196, 15, 0.2)';
+            } else if (g >= 3.00) { 
+                // 3 - Orange
+                    color = '#fd7e14'; 
+                bg = 'rgba(253, 126, 20, 0.15)'; 
+                shadow = '0 0 10px rgba(253, 126, 20, 0.2)';
+            } else { 
+                // 2 - Red
+                color = '#ef476f'; 
+                bg = 'rgba(239, 71, 111, 0.15)'; 
+                shadow = '0 0 10px rgba(239, 71, 111, 0.2)';
+            }
+
+            const style = `
+                width: 50px; 
+                padding: 5px; 
+                text-align: center; 
+                font-weight: 800; 
+                font-size: 15px;
+                color: ${color}; 
+                border: 2px solid ${color}; 
+                background: ${bg}; 
+                box-shadow: ${shadow}; 
+                border-radius: 8px; 
+                margin: 0;
+            `;
+
             html += `
               <tr>
                 <td><strong>${s.studentName || 'Анонимен'}</strong></td>
                 <td>${s.studentClass || '—'}</td>
                 <td>
-                  <span style="background:${badgeColor}20; color:${badgeColor}; padding:4px 8px; border-radius:4px; font-weight:bold;">
-                    ${displayGrade}
-                  </span>
+                  <input type="text" value="${displayGrade}" readonly style="${style}">
                 </td>
                 <td>${new Date(s.submittedAt).toLocaleString('bg-BG')}</td>
                 <td>
@@ -89,14 +130,13 @@
       });
 
     async function deleteSub(id) {
-      if (confirm('Сигурни ли сте, че искате да изтриете този отговор?')) {
+      if (confirm('Сигурни ли сте?')) {
         await fetch('/api/submissions/' + id, { method: 'DELETE' });
         location.reload();
       }
     }
     
-    // Apply Dark Mode
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
   </script>
 </body>
-</html>
+</html> 

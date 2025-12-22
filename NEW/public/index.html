@@ -5,12 +5,18 @@
   <title>Табло - Тестова Система</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
+  
   <script>
       const user = JSON.parse(localStorage.getItem('user'));
-      if (!user) window.location.href = 'login.html';
+      if (!user) {
+          // Stop loading the rest of the HTML
+          try { window.stop(); } catch(e) { document.execCommand('Stop'); }
+          // Redirect to login
+          window.location.href = 'login.html';
+      }
   </script>
+</head>
+<body>
 
   <nav class="top-nav">
     <div class="brand">
@@ -24,7 +30,6 @@
   </nav>
 
   <div class="container">
-    
     <div class="dashboard-grid">
         <div class="card graph-card" id="teacher-stats">
             <h2 style="text-align: center; color: var(--primary);">🏆 Статистика на класовете</h2>
@@ -32,6 +37,14 @@
         </div>
 
         <div class="menu-column">
+            
+            <div class="card action-card" id="admin-menu" style="display:none; border:2px solid #e74c3c;">
+                <h3 style="color:#e74c3c;">🛡️ Администратор</h3>
+                <div class="btn-group-vertical">
+                    <a href="admin.html" class="btn" style="width:100%; background:#c0392b;">⚙️ Управление на профили</a>
+                </div>
+            </div>
+
             <div class="card action-card" id="teacher-menu" style="display:none;">
                 <h3>👨‍🏫 Учителски панел</h3>
                 <div class="btn-group-vertical">
@@ -46,6 +59,7 @@
                 <p>Клас: <strong id="s-class"></strong></p>
                 <div class="btn-group-vertical">
                     <button onclick="document.getElementById('test-list').scrollIntoView({behavior:'smooth'})" class="btn green" style="width:100%;">▶️ Намери Тест</button>
+                    <a href="my-grades.html" class="btn dashboard" style="width:100%; text-align:center;">📊 Моите Оценки</a>
                     <button id="theme-btn-student" class="btn" style="width:100%; background:#34495e;">🌙 Смени тема</button>
                 </div>
             </div>
@@ -56,13 +70,12 @@
         <h2 style="border-bottom: 2px solid var(--primary); padding-bottom: 10px;">📋 Активни тестове</h2>
         <div id="list">Зареждане...</div>
     </div>
-
   </div>
 
   <script>
+    // Since we checked user in <head>, we know 'user' exists here
     document.getElementById('user-display').textContent = user.full_name || user.username;
     
-    // Setup UI based on role
     if (user.role === 'student') {
         document.getElementById('student-menu').style.display = 'block';
         document.getElementById('s-name').textContent = user.full_name;
@@ -71,50 +84,39 @@
         document.querySelector('.dashboard-grid').style.gridTemplateColumns = '1fr'; 
     } else {
         document.getElementById('teacher-menu').style.display = 'block';
+        if(user.role === 'admin') document.getElementById('admin-menu').style.display = 'block';
         fetch('/api/submissions').then(r=>r.json()).then(setupChart);
     }
 
-    // THEME TOGGLE LOGIC
     function toggleTheme() {
         document.body.classList.toggle('dark');
         localStorage.setItem('dark', document.body.classList.contains('dark'));
     }
-    // Attach to both buttons just in case
-    document.getElementById('theme-btn-student').onclick = toggleTheme;
-    document.getElementById('theme-btn-teacher').onclick = toggleTheme;
-    
-    // Apply saved theme
+    if(document.getElementById('theme-btn-student')) document.getElementById('theme-btn-student').onclick = toggleTheme;
+    if(document.getElementById('theme-btn-teacher')) document.getElementById('theme-btn-teacher').onclick = toggleTheme;
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
 
-    function logout() {
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
+    function logout() { 
+        localStorage.removeItem('user'); 
+        window.location.href = 'login.html'; 
     }
 
-    // Load Tests
     fetch('/api/tests').then(r => r.json()).then(tests => {
         const list = document.getElementById('list');
         if (!tests.length) { list.innerHTML = '<p style="text-align:center;">Няма тестове.</p>'; return; }
-
         list.innerHTML = tests.map(t => `
           <div class="test-card">
-            <div>
-                <h3 style="margin:0; color:var(--primary);">${t.title}</h3>
-                <span class="badge">Въпроси: ${t.question_count}</span>
-            </div>
+            <div><h3 style="margin:0; color:var(--primary);">${t.title}</h3><span class="badge">Въпроси: ${t.question_count}</span></div>
             <div class="actions">
-              ${user.role === 'student' 
-                  ? `<a href="take.html?id=${t.id}" class="btn green">Решаване</a>` 
-                  : `<button onclick="deleteTest(${t.id})" class="btn red">Изтрий</button>` 
-              }
+                ${user.role === 'student' 
+                    ? `<a href="take.html?id=${t.id}" class="btn green">Решаване</a>` 
+                    : `<button onclick="deleteTest(${t.id})" class="btn red">Изтрий</button>`}
             </div>
           </div>
         `).join('');
     });
 
-    function deleteTest(id) {
-        if(confirm('Изтриване?')) fetch(`/api/tests/${id}`,{method:'DELETE'}).then(()=>location.reload());
-    }
+    function deleteTest(id) { if(confirm('Изтриване?')) fetch(`/api/tests/${id}`,{method:'DELETE'}).then(()=>location.reload()); }
 
     function setupChart(data) {
         if(!data.length) return;
@@ -125,18 +127,24 @@
             if(!classStats[c]) classStats[c] = {t:0, c:0};
             classStats[c].t+=g; classStats[c].c++;
         });
+
+        const labels = Object.keys(classStats);
+        const avgData = labels.map(k => (classStats[k].t/classStats[k].c).toFixed(2));
         
+        const bgColors = avgData.map(val => {
+            const v = parseFloat(val);
+            if(v >= 5.50) return '#06d6a0'; // Green
+            if(v >= 4.50) return '#3498db'; // Blue
+            if(v >= 3.50) return '#f1c40f'; // Yellow
+            if(v >= 3.00) return '#fd7e14'; // Orange
+            return '#ef476f'; // Red
+        });
+
         const ctx = document.getElementById('classChart').getContext('2d');
         new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels: Object.keys(classStats),
-                datasets: [{
-                    label: 'Успех',
-                    data: Object.keys(classStats).map(k => (classStats[k].t/classStats[k].c).toFixed(2)),
-                    backgroundColor: '#4a90e2'
-                }]
-            }
+            data: { labels: labels, datasets: [{ label: 'Успех', data: avgData, backgroundColor: bgColors, borderRadius: 4 }] },
+            options: { scales: { y: { beginAtZero: true, max: 6 } }, plugins: { legend: { display: false } } }
         });
     }
   </script>

@@ -5,54 +5,34 @@
   <title>Решаване на тест</title>
   <link rel="stylesheet" href="style.css">
   <script>
-      // Security Check
       const user = JSON.parse(localStorage.getItem('user'));
       if(!user || user.role !== 'student') {
-          alert('Трябва да сте влезли като ученик!');
-          window.location.href = 'index.html';
+          alert('Трябва да сте влезли като ученик!'); window.location.href = 'index.html';
       }
   </script>
   <style>
-    /* Restored Midnight Blue / Sticky Layout */
     .timer-float {
         position: sticky; top: 0; z-index: 100;
-        background: rgba(20, 30, 48, 0.95);
-        backdrop-filter: blur(10px);
-        padding: 15px 20px; 
-        margin: -50px -50px 30px -50px;
+        background: rgba(20, 30, 48, 0.95); backdrop-filter: blur(10px);
+        padding: 15px 20px; margin: -50px -50px 30px -50px;
         border-bottom: 1px solid rgba(255,255,255,0.1);
-        display: flex; justify-content: space-between; align-items: center;
-        color: white;
+        display: flex; justify-content: space-between; align-items: center; color: white;
         border-radius: 20px 20px 0 0;
     }
-    
     .timer-display { font-size: 1.8rem; font-weight: 800; color: #ff6b6b; font-variant-numeric: tabular-nums; }
     .timer-display.warning { animation: pulse 1s infinite; color: #e74c3c; }
-    
-    .opt-label { 
-        display: flex; align-items: center; padding: 12px 15px; 
-        margin: 8px 0; border-radius: 8px; cursor: pointer; 
-        transition: background 0.2s; 
-        border: 1px solid transparent;
-    }
+    .opt-label { display: flex; align-items: center; padding: 12px 15px; margin: 8px 0; border-radius: 8px; cursor: pointer; transition: background 0.2s; border: 1px solid transparent; }
     .opt-label:hover { background: #f0f2f5; }
     body.dark .opt-label:hover { background: #2f3542; }
-    
     .opt-label input { transform: scale(1.3); margin-right: 15px; width:auto; }
-
-    @keyframes pulse { 0%,100% {opacity:1} 50% {opacity:0.6} }
-    
-    /* Allow sticky header to work */
     .container { overflow: visible; }
+    @keyframes pulse { 0%,100% {opacity:1} 50% {opacity:0.6} }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="timer-float">
-        <div>
-            <div style="font-weight:bold; font-size:1.1rem;">⏱️ Оставащо време</div>
-            <div style="font-size:0.9rem; opacity:0.8;" id="student-display"></div>
-        </div>
+        <div><div style="font-weight:bold; font-size:1.1rem;">⏱️ Оставащо време</div><div style="font-size:0.9rem; opacity:0.8;" id="student-display"></div></div>
         <div class="timer-display" id="timer">30:00</div>
     </div>
 
@@ -61,9 +41,7 @@
     <div class="progress-bar-container" style="height:8px; background:#e0e0e0; border-radius:4px; margin:20px 0; overflow:hidden;">
         <div id="progress" style="height:100%; width:0%; background:linear-gradient(90deg, #06d6a0, #4a90e2); transition: width 0.5s ease;"></div>
     </div>
-    <div style="text-align:right; margin-bottom:30px; color:var(--text-muted);">
-        Решени: <strong id="answered">0</strong> / <strong id="totalQ">0</strong>
-    </div>
+    <div style="text-align:right; margin-bottom:30px; color:var(--text-muted);">Решени: <strong id="answered">0</strong> / <strong id="totalQ">0</strong></div>
 
     <form id="quiz">
       <div id="questions"></div>
@@ -71,15 +49,16 @@
     </form>
   </div>
 
-  <script>
-    // 1. Setup Student Info
-    document.getElementById('student-display').textContent = `${user.full_name} (${user.student_class})`;
+  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+      <span class="lightbox-close">&times;</span>
+      <img id="lightbox-img" src="">
+  </div>
 
+  <script>
+    document.getElementById('student-display').textContent = `${user.full_name} (${user.student_class})`;
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
-    if (!id) document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:100px;'>Липсва ID на тест!</h1>";
 
-    // 2. Timer Logic
     let timeLeft = 30 * 60;
     const timerEl = document.getElementById('timer');
     const timerInterval = setInterval(() => {
@@ -88,14 +67,9 @@
       const s = String(timeLeft % 60).padStart(2, '0');
       timerEl.textContent = `${m}:${s}`;
       if (timeLeft <= 300) timerEl.classList.add('warning');
-      if (timeLeft <= 0) {
-        clearInterval(timerInterval);
-        alert('Времето изтече! Тестът се предава автоматично.');
-        document.getElementById('quiz').dispatchEvent(new Event('submit'));
-      }
+      if (timeLeft <= 0) { clearInterval(timerInterval); document.getElementById('quiz').dispatchEvent(new Event('submit')); }
     }, 1000);
 
-    // 3. Load Test
     fetch('/api/tests/' + id)
       .then(r => r.json())
       .then(test => {
@@ -103,38 +77,41 @@
         document.getElementById('totalQ').textContent = test.questions.length;
 
         const html = test.questions.map((q, i) => {
-          // Open Question
-          if (q.type === 'open') {
-            return `<div class="question qblock"><p><strong>${i+1}. ${q.text}</strong> <em style="color:#7209b7;">(свободен текст)</em></p>
-                    <textarea name="q${i}" placeholder="Напишете отговора си тук..." required></textarea></div>`;
+          // IMAGE HTML GENERATOR
+          let imgHTML = '';
+          if(q.image) {
+              imgHTML = `<div class="q-image-container"><img src="${q.image}" class="q-image" onclick="openLightbox(this.src)"></div>`;
           }
-          // Multiple Choice (With Checkbox Limits)
+
+          if (q.type === 'open') {
+            return `<div class="question qblock">
+                        <p><strong>${i+1}. ${q.text}</strong> <em style="color:#7209b7;">(свободен текст)</em></p>
+                        ${imgHTML}
+                        <textarea name="q${i}" placeholder="Напишете отговора си тук..." required></textarea>
+                    </div>`;
+          }
           if (q.type === 'multiple') {
             const req = q.requiredCount || 2;
-            return `<div class="question qblock"><p><strong>${i+1}. ${q.text}</strong> <em style="color:#ef476f;">(изберете точно ${req})</em></p>
-                    ${q.options.map((opt, j) => 
-                        `<label class="opt-label">
-                            <input type="checkbox" name="q${i}" value="${j}" onchange="limitCheckboxes(this, ${req}, ${i})"> ${opt}
-                         </label>`
-                    ).join('')}
-                    <div id="warn${i}" style="color:#ef476f; margin-top:10px; font-weight:bold; font-size:0.9em;"></div></div>`;
+            return `<div class="question qblock">
+                        <p><strong>${i+1}. ${q.text}</strong> <em style="color:#ef476f;">(изберете точно ${req})</em></p>
+                        ${imgHTML}
+                        ${q.options.map((opt, j) => `<label class="opt-label"><input type="checkbox" name="q${i}" value="${j}" onchange="limitCheckboxes(this, ${req}, ${i})"> ${opt}</label>`).join('')}
+                        <div id="warn${i}" style="color:#ef476f; margin-top:10px; font-weight:bold; font-size:0.9em;"></div>
+                    </div>`;
           }
-          // Single Choice
-          return `<div class="question qblock"><p><strong>${i+1}. ${q.text}</strong></p>
-                  ${q.options.map((opt, j) => 
-                      `<label class="opt-label"><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`
-                  ).join('')}</div>`;
+          return `<div class="question qblock">
+                    <p><strong>${i+1}. ${q.text}</strong></p>
+                    ${imgHTML}
+                    ${q.options.map((opt, j) => `<label class="opt-label"><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`).join('')}
+                  </div>`;
         }).join('');
         
         document.getElementById('questions').innerHTML = html;
 
-        // Progress Bar Logic
         document.getElementById('quiz').addEventListener('input', () => {
           const answered = new Set();
           document.querySelectorAll('[name^="q"]').forEach(inp => {
-            if ((inp.type === 'radio' && inp.checked) || 
-                (inp.type === 'checkbox' && inp.checked) || 
-                (inp.tagName === 'TEXTAREA' && inp.value.trim())) {
+            if ((inp.type === 'radio' && inp.checked) || (inp.type === 'checkbox' && inp.checked) || (inp.tagName === 'TEXTAREA' && inp.value.trim())) {
               answered.add(inp.name);
             }
           });
@@ -144,66 +121,44 @@
         });
       });
 
-    // 4. Limit Checkboxes Logic (Restored)
-    function limitCheckboxes(cb, req, i) {
-      const checked = document.querySelectorAll(`input[name="q${i}"]:checked`);
-      if (checked.length > req) { 
-          cb.checked = false; // Prevent selection
-          // Optional: Add a shake animation or toast here
-      }
-      
-      const currentCount = document.querySelectorAll(`input[name="q${i}"]:checked`).length;
-      const msg = document.getElementById('warn'+i);
-      
-      if (currentCount === req) {
-          msg.textContent = '✅ Избрани са достатъчно отговори';
-          msg.style.color = '#06d6a0';
-      } else {
-          msg.textContent = `Избрани: ${currentCount} / ${req}`;
-          msg.style.color = '#ef476f';
-      }
+    // Lightbox Logic
+    function openLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').style.display = 'flex';
+    }
+    function closeLightbox() {
+        document.getElementById('lightbox').style.display = 'none';
     }
 
-    // 5. Submit Logic (Uses logged-in user data)
+    function limitCheckboxes(cb, req, i) {
+      const checked = document.querySelectorAll(`input[name="q${i}"]:checked`);
+      if (checked.length > req) cb.checked = false;
+      const count = document.querySelectorAll(`input[name="q${i}"]:checked`).length;
+      const msg = document.getElementById('warn'+i);
+      if (count === req) { msg.textContent = '✅ Готово'; msg.style.color = '#06d6a0'; }
+      else { msg.textContent = `Избрани: ${count} / ${req}`; msg.style.color = '#ef476f'; }
+    }
+
     document.getElementById('quiz').onsubmit = async e => {
       e.preventDefault();
       clearInterval(timerInterval);
-      
       const fd = new FormData(e.target);
       const answers = {};
-      
       for (let [k, v] of fd) {
-        if (answers[k]) {
-          if (Array.isArray(answers[k])) answers[k].push(v);
-          else answers[k] = [answers[k], v];
-        } else answers[k] = v;
+        if (answers[k]) { if (Array.isArray(answers[k])) answers[k].push(v); else answers[k] = [answers[k], v]; } 
+        else answers[k] = v;
       }
 
       const res = await fetch('/api/grade/' + id, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            answers,
-            studentId: user.id,
-            studentName: user.full_name,
-            studentClass: user.student_class
-        })
+        body: JSON.stringify({ answers, studentId: user.id, studentName: user.full_name, studentClass: user.student_class })
       });
 
-      if(res.ok) {
-          document.body.innerHTML = `
-            <div class="container" style="text-align:center; padding-top:100px;">
-                <h1 style="color:#06d6a0; font-size:3rem;">Тестът е предаден!</h1>
-                <p>Вашите отговори бяха записани успешно.</p>
-                <a href="index.html" class="btn back-btn">Към начало</a>
-            </div>
-          `;
-      } else {
-          alert('Възникна грешка при предаване!');
-      }
+      if(res.ok) document.body.innerHTML = `<div class="container" style="text-align:center; padding-top:100px;"><h1 style="color:#06d6a0;">Тестът е предаден!</h1><a href="index.html" class="btn back-btn">Към начало</a></div>`;
+      else alert('Грешка!');
     };
 
-    // Apply Dark Mode if set
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
   </script>
 </body>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>Моите Оценки</title>
+  <link rel="stylesheet" href="style.css">
+  <script>
+      const user = JSON.parse(localStorage.getItem('user'));
+      if(!user || user.role !== 'student') {
+          alert('Тази страница е само за ученици!');
+          window.location.href = 'index.html';
+      }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>🎓 Моите Оценки</h1>
+    
+    <div class="info-box" style="text-align:center; margin-top:30px;">
+        <h3>Среден успех: <span id="avg-grade" style="font-weight:bold;">0.00</span></h3>
+    </div>
+
+    <div class="card">
+        <h3>📜 История на тестовете</h3>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Тест</th>
+                        <th>Дата</th>
+                        <th>Оценка</th>
+                        <th>Коментар</th>
+                        <th>Преглед</th>
+                    </tr>
+                </thead>
+                <tbody id="gradesTable"></tbody>
+            </table>
+        </div>
+        <div id="empty-msg" style="display:none; text-align:center; padding:20px; color:#777;">
+            Все още нямате решени тестове.
+        </div>
+    </div>
+
+    <a href="index.html" class="back-btn btn">🏠 Обратно към начало</a>
+  </div>
+
+  <script>
+    fetch(`/api/student-submissions/${user.id}`)
+      .then(r => r.json())
+      .then(data => {
+        const tbody = document.getElementById('gradesTable');
+        const emptyMsg = document.getElementById('empty-msg');
+        
+        if (!data || data.length === 0) {
+            emptyMsg.style.display = 'block';
+            return;
+        }
+
+        let totalScore = 0;
+        let count = 0;
+
+        tbody.innerHTML = data.map(s => {
+            const grade = parseFloat(s.manualGrade && s.manualGrade !== '—' ? s.manualGrade : s.autoGrade);
+            totalScore += grade;
+            count++;
+
+            // Color Logic (Glassy Style & Swapped 3/4)
+            let color = '#333'; let bg = 'rgba(255,255,255,0.1)'; let shadow = 'none';
+
+            if (grade >= 5.50) { 
+                // 6 - Green
+                color = '#06d6a0'; bg = 'rgba(6, 214, 160, 0.15)'; shadow='0 0 10px rgba(6,214,160,0.3)'; 
+            } else if (grade >= 4.50) { 
+                // 5 - Blue
+                color = '#3498db'; bg = 'rgba(52, 152, 219, 0.15)'; shadow='0 0 10px rgba(52,152,219,0.3)'; 
+            } else if (grade >= 3.50) { 
+                // 4 - Yellow
+                color = '#f1c40f'; bg = 'rgba(241, 196, 15, 0.15)'; shadow='0 0 10px rgba(241,196,15,0.3)'; 
+            } else if (grade >= 3.00) { 
+                // 3 - Orange
+                color = '#fd7e14'; bg = 'rgba(253, 126, 20, 0.15)'; shadow='0 0 10px rgba(253,126,20,0.3)'; 
+            } else { 
+                // 2 - Red
+                color = '#ef476f'; bg = 'rgba(239, 71, 111, 0.15)'; shadow='0 0 10px rgba(239,71,111,0.3)'; 
+            }
+
+            const gradeStyle = `
+                display:inline-block; width: 60px; padding: 5px; 
+                text-align: center; font-weight: 800; border-radius: 8px;
+                color: ${color}; border: 2px solid ${color}; background: ${bg}; box-shadow: ${shadow};
+            `;
+
+            return `
+                <tr>
+                    <td><strong>${s.testTitle || 'Изтрит тест'}</strong></td>
+                    <td>${new Date(s.submittedAt).toLocaleDateString('bg-BG')}</td>
+                    <td><span style="${gradeStyle}">${grade.toFixed(2)}</span></td>
+                    <td style="font-size:0.9em; font-style:italic; color:var(--text-muted);">
+                        ${s.teacherComment ? '💬 '+s.teacherComment : '—'}
+                    </td>
+                    <td>
+                        <a href="submission.html?id=${s.submissionId}" class="btn dashboard" style="padding:6px 12px; font-size:13px; margin:0;">👁️ Виж</a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const avg = count > 0 ? (totalScore / count).toFixed(2) : "0.00";
+        const avgEl = document.getElementById('avg-grade');
+        avgEl.textContent = avg;
+        
+        if(avg >= 5.50) avgEl.style.color = '#06d6a0';
+        else if(avg >= 4.50) avgEl.style.color = '#3498db';
+        else if(avg >= 3.50) avgEl.style.color = '#f1c40f'; // Yellow
+        else if(avg >= 3.00) avgEl.style.color = '#fd7e14'; // Orange
+        else avgEl.style.color = '#ef476f';
+      });
+
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
+  </script>
+</body>
+</html>
