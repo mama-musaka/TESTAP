@@ -53,6 +53,7 @@
                 <p>Клас: <strong id="s-class"></strong></p>
                 <div class="btn-group-vertical">
                     <button onclick="document.getElementById('test-list').scrollIntoView({behavior:'smooth'})" class="btn green" style="width:100%;">▶️ Намери Тест</button>
+                    <a href="my-grades.html" class="btn dashboard" style="width:100%; text-align:center;">📊 Моите Оценки</a>
                     <button id="theme-btn-student" class="btn" style="width:100%; background:#34495e;">🌙 Смени тема</button>
                 </div>
             </div>
@@ -75,14 +76,8 @@
         document.getElementById('teacher-stats').style.display = 'none';
         document.querySelector('.dashboard-grid').style.gridTemplateColumns = '1fr'; 
     } else {
-        // Show Teacher Menu for both Teachers and Admins
         document.getElementById('teacher-menu').style.display = 'block';
-        
-        // Show Admin Menu ONLY for Admins
-        if(user.role === 'admin') {
-            document.getElementById('admin-menu').style.display = 'block';
-        }
-        
+        if(user.role === 'admin') document.getElementById('admin-menu').style.display = 'block';
         fetch('/api/submissions').then(r=>r.json()).then(setupChart);
     }
 
@@ -126,7 +121,6 @@
         const labels = Object.keys(classStats);
         const avgData = labels.map(k => (classStats[k].t/classStats[k].c).toFixed(2));
         
-        // New Color Scheme (2=Red, 3=Orange, 4=Yellow, 5=Blue, 6=Green)
         const bgColors = avgData.map(val => {
             const v = parseFloat(val);
             if(v >= 5.50) return '#06d6a0'; // Green
@@ -139,19 +133,8 @@
         const ctx = document.getElementById('classChart').getContext('2d');
         new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Успех',
-                    data: avgData,
-                    backgroundColor: bgColors,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                scales: { y: { beginAtZero: true, max: 6 } },
-                plugins: { legend: { display: false } }
-            }
+            data: { labels: labels, datasets: [{ label: 'Успех', data: avgData, backgroundColor: bgColors, borderRadius: 4 }] },
+            options: { scales: { y: { beginAtZero: true, max: 6 } }, plugins: { legend: { display: false } } }
         });
     }
   </script>

@@ -6,39 +6,26 @@
   <link rel="stylesheet" href="style.css">
   <style>
     .review-panel {
-        background: #fdfdfd;
-        border: 2px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 30px;
-        margin-top: 40px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        background: #fdfdfd; border: 2px solid #e0e0e0; border-radius: 12px;
+        padding: 30px; margin-top: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
     .review-header {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
+        font-size: 1.3rem; font-weight: 700; color: var(--text-main);
+        margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;
     }
     textarea.comment-box {
         width: 100%; min-height: 120px; padding: 15px; border: 1px solid #ccc;
         border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; margin-bottom: 20px; box-sizing: border-box;
     }
     .final-grade-row { display: flex; align-items: center; justify-content: flex-end; gap: 15px; }
-    
-    .grade-select {
-        font-weight: bold; transition: all 0.3s; border: 2px solid transparent; outline:none;
-    }
+    .grade-select { font-weight: bold; transition: all 0.3s; border: 2px solid transparent; outline:none; }
   </style>
 </head>
-
 <body>
   <div class="container">
     <h1 id="title" style="margin-bottom:20px;">Зареждане...</h1>
     
     <div class="info-box" id="info"></div>
-    
     <div id="answers"></div>
     
     <div class="review-panel">
@@ -61,7 +48,7 @@
     </div>
 
     <div style="text-align:center; margin-top:40px;">
-      <a href="dashboard.html" class="back-btn btn">Обратно към дашборда</a>
+      <a href="javascript:history.back()" class="back-btn btn">Обратно</a>
     </div>
   </div>
 
@@ -78,14 +65,12 @@
       .then(r => r.json())
       .then(data => {
         document.getElementById('title').textContent = `${data.studentName} – ${data.testTitle}`;
-        
-        // Auto Grade Color Logic
         const ag = parseFloat(data.autoGrade || 0);
         let agColor = '#333';
         if(ag >= 5.50) agColor = '#06d6a0'; 
         else if(ag >= 4.50) agColor = '#3498db'; 
-        else if(ag >= 3.50) agColor = '#f1c40f'; 
-        else if(ag >= 3.00) agColor = '#fd7e14'; 
+        else if(ag >= 3.50) agColor = '#f1c40f'; // Yellow
+        else if(ag >= 3.00) agColor = '#fd7e14'; // Orange
         else agColor = '#ef476f'; 
 
         document.getElementById('info').innerHTML = `
@@ -108,12 +93,9 @@
           const q = data.questions[i] || {};
           const maxPoints = q.points || 1;
           
-          // GENERATE IMAGE HTML
           let imgHTML = '';
           if(q.image) {
-              imgHTML = `<div class="q-image-container">
-                            <img src="${q.image}" class="q-image" onclick="openLightbox(this.src)" style="max-height:150px;">
-                         </div>`;
+              imgHTML = `<div class="q-image-container"><img src="${q.image}" class="q-image" onclick="openLightbox(this.src)" style="max-height:150px;"></div>`;
           }
 
           if (a.type === 'open') {
@@ -121,7 +103,8 @@
             return `
               <div class="qblock answer-block" style="border-left: 5px solid #7209b7;">
                 <h3>${i+1}. ${a.question} <small style="opacity:0.6; font-size:0.7em;">(макс ${maxPoints} т.)</small></h3>
-                ${imgHTML} <p><strong>Отговор на ученика:</strong></p>
+                ${imgHTML}
+                <p><strong>Отговор на ученика:</strong></p>
                 <div class="student-answer-box">${a.studentAnswer || '(няма отговор)'}</div>
                 <div style="margin-top:15px; padding-top:10px; border-top:1px solid #eee; display:flex; align-items:center; justify-content:flex-end;">
                   <span style="margin-right:10px; font-size:0.9em;">Точки:</span>
@@ -140,7 +123,8 @@
           return `
             <div class="qblock" style="border-left: 5px solid ${color};">
                 <h3>${i+1}. ${a.question}</h3>
-                ${imgHTML} <p style="margin:5px 0;"><strong>Верен:</strong> <span style="color:#2ecc71;">${correct}</span></p>
+                ${imgHTML}
+                <p style="margin:5px 0;"><strong>Верен:</strong> <span style="color:#2ecc71;">${correct}</span></p>
                 <p style="margin:5px 0;"><strong>Ученик:</strong> <span style="color:${color}; font-weight:bold;">${student}</span></p>
             </div>`;
         }).join('');
@@ -148,7 +132,6 @@
         document.getElementById('answers').innerHTML = html;
       });
 
-    // Lightbox Logic
     function openLightbox(src) {
         document.getElementById('lightbox-img').src = src;
         document.getElementById('lightbox').style.display = 'flex';
@@ -167,10 +150,7 @@
         else if (val >= 3.00) { color = '#fd7e14'; bg = 'rgba(253, 126, 20, 0.15)'; shadow='0 0 10px rgba(253,126,20,0.3)'; }
         else if (val >= 2.00) { color = '#ef476f'; bg = 'rgba(239, 71, 111, 0.15)'; shadow='0 0 10px rgba(239,71,111,0.3)'; }
         
-        select.style.color = color;
-        select.style.borderColor = color;
-        select.style.backgroundColor = bg;
-        select.style.boxShadow = shadow;
+        select.style.color = color; select.style.borderColor = color; select.style.backgroundColor = bg; select.style.boxShadow = shadow;
     }
 
     async function saveOpenPoints(sid, idx, pts) {
@@ -182,6 +162,34 @@
         alert('Запазено!'); window.location.href='dashboard.html';
     }
     if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark');
+
+    // === STUDENT VIEW PROTECTION ===
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (currentUser && currentUser.role === 'student') {
+        const reviewPanel = document.querySelector('.review-panel');
+        if(reviewPanel) reviewPanel.style.display = 'none';
+
+        const observer = new MutationObserver(() => {
+            const pointBtns = document.querySelectorAll('.points-select + button');
+            const pointSelects = document.querySelectorAll('.points-select');
+            if (pointBtns.length > 0) {
+                pointBtns.forEach(btn => btn.remove());
+                pointSelects.forEach(sel => {
+                    sel.disabled = true;
+                    sel.style.border = 'none';
+                    sel.style.background = 'transparent';
+                    sel.style.appearance = 'none';
+                    sel.style.fontWeight = 'bold';
+                    const span = document.createElement('span');
+                    span.textContent = sel.value + " т.";
+                    span.style.fontWeight = "bold";
+                    sel.parentNode.replaceChild(span, sel);
+                });
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.getElementById('answers'), { childList: true, subtree: true });
+    }
   </script>
 </body>
 </html>
